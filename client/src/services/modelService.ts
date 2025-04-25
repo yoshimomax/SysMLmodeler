@@ -6,39 +6,52 @@ import { apiRequest } from '@/lib/queryClient';
 import { useAppStore } from '@/lib/store';
 
 /**
- * Save the model to a file
- * @param model The SysML model to save
- * @param filename Optional filename (defaults to project.sysml)
+ * 指定したモデルをデータベースに保存します
+ * @param model SysMLモデル
+ * @param filename ファイル名（デフォルトは 'project.sysml'）
+ * @param fileId 既存のファイルID（更新の場合）
  */
-export async function saveModelToFile(model: SysMLModel, filename = 'project.sysml'): Promise<boolean> {
+export async function saveModelToFile(
+  model: SysMLModel, 
+  filename = 'project.sysml', 
+  fileId?: number
+): Promise<boolean> {
   try {
-    // Serialize model to JSON
+    // モデルをJSON形式にシリアライズ
     const modelJson = JSON.stringify(model, null, 2);
     
-    // Send to server to save
-    await apiRequest(
+    // サーバーにデータを送信（データベースに保存）
+    const response = await apiRequest(
       'POST',
       `/api/models/save`,
       {
         filename,
         content: modelJson,
+        fileId // 既存のファイルIDがあれば送信（更新の場合）
       }
     );
     
-    // Update status message
+    const data = await response.json();
+    
+    // 成功メッセージを表示
     useAppStore.getState().setStatusMessage({
-      text: `Model saved to ${filename}`,
+      text: `モデル "${filename}" を保存しました`,
       type: 'success',
     });
     
-    // Mark as not dirty after successful save
+    // 保存後は変更フラグをリセット
     useAppStore.getState().setIsDirty(false);
+    
+    // レスポンスにモデルIDが含まれていれば保存
+    if (data?.model?.id) {
+      console.log(`Model saved with ID: ${data.model.id}`);
+    }
     
     return true;
   } catch (error) {
-    // Update status message with error
+    // エラーメッセージを表示
     useAppStore.getState().setStatusMessage({
-      text: `Failed to save model: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      text: `モデルの保存に失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`,
       type: 'error',
     });
     console.error('Error saving model:', error);
@@ -47,50 +60,67 @@ export async function saveModelToFile(model: SysMLModel, filename = 'project.sys
 }
 
 /**
- * Load a model from a file
- * @param filename The filename to load (defaults to project.sysml)
+ * データベースからモデルを読み込みます
+ * @param filename ファイル名（デフォルトは 'project.sysml'）
+ * @param modelId モデルID（指定した場合はファイル名より優先）
  */
-export async function loadModelFromFile(filename = 'project.sysml'): Promise<SysMLModel | null> {
+export async function loadModelFromFile(
+  filename = 'project.sysml', 
+  modelId?: number
+): Promise<SysMLModel | null> {
   try {
-    // Request the model file from the server
-    const response = await apiRequest(
-      'GET',
-      `/api/models/load?filename=${encodeURIComponent(filename)}`
-    );
+    // APIリクエストURLを構築
+    let url = `/api/models/load`;
+    if (modelId) {
+      url += `?id=${modelId}`;
+    } else if (filename) {
+      url += `?filename=${encodeURIComponent(filename)}`;
+    }
+    
+    // サーバーからモデルデータを要求
+    const response = await apiRequest('GET', url);
     
     if (!response.ok) {
-      throw new Error(`Failed to load model: ${response.statusText}`);
+      throw new Error(`モデルの読み込みに失敗しました: ${response.statusText}`);
     }
     
     const data = await response.json();
     
     if (!data.content) {
-      throw new Error('Invalid model file format');
+      throw new Error('無効なモデルフォーマット');
     }
     
-    // Parse the model JSON
+    // JSONからモデルデータをパース
     const model: SysMLModel = JSON.parse(data.content);
     
-    // Update status message
+    // データベースのモデルIDをモデルに保持（後で更新に使用）
+    if (data.model?.id) {
+      // @ts-ignore - id is not part of SysMLModel but we need it for tracking
+      model._dbId = data.model.id;
+      console.log(`Loaded model with DB ID: ${data.model.id}`);
+    }
+    
+    // ステータスメッセージの更新
     useAppStore.getState().setStatusMessage({
-      text: `Model loaded from ${filename}`,
+      text: `モデル "${data.filename || filename}" を読み込みました`,
       type: 'success',
     });
     
     return model;
   } catch (error) {
+    // エラーハンドリング
     if (error instanceof Error && error.message.includes('not found')) {
-      // File not found is not necessarily an error - might be first run
+      // 初回実行時など、ファイルが見つからない場合は必ずしもエラーではない
       useAppStore.getState().setStatusMessage({
-        text: 'Creating new model',
+        text: '新しいモデルを作成します',
         type: 'info',
       });
       return null;
     }
     
-    // Update status message with error
+    // エラーメッセージの表示
     useAppStore.getState().setStatusMessage({
-      text: `Failed to load model: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      text: `モデルの読み込みに失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`,
       type: 'error',
     });
     console.error('Error loading model:', error);
@@ -114,30 +144,41 @@ export function setupBeforeUnloadListener(): void {
 }
 
 /**
- * Auto-save the current model
+ * 現在のモデルを自動保存します
  */
 export async function autoSaveModel(): Promise<boolean> {
-  // Get the current model from the store
+  // ストアから現在の状態を取得
   const state = useAppStore.getState();
   
-  // Only save if the model is dirty
+  // 変更がある場合のみ保存
   if (!state.isDirty) {
     return true;
   }
   
   try {
+    // 現在のモデルを取得
     const model = state.saveModel();
-    await saveModelToFile(model, 'autosave.sysml');
     
-    // Update the status message silently (no notification)
+    // モデルのデータベースIDがあれば使用（同じレコードを更新）
+    // @ts-ignore - _dbId property
+    const dbId = model._dbId;
+    
+    // 自動保存用の名前とファイルIDで保存
+    await saveModelToFile(
+      model, 
+      'autosave.sysml',
+      dbId ? parseInt(dbId) : undefined
+    );
+    
+    // 静かに通知（ポップアップなし）
     state.setStatusMessage({
-      text: 'Auto-saved',
+      text: '自動保存しました',
       type: 'info',
     });
     
     return true;
   } catch (error) {
-    console.error('Auto-save failed:', error);
+    console.error('自動保存に失敗しました:', error);
     return false;
   }
 }
