@@ -29,7 +29,7 @@ export const files = pgTable("files", {
   type: text("type").notNull(), // "folder", "diagram", "model", etc.
   content: text("content"),
   projectId: integer("project_id").references(() => projects.id),
-  parentId: integer("parent_id").references(() => files.id),
+  parentId: integer("parent_id"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });

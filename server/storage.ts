@@ -4,6 +4,8 @@ import {
   files, type File, type InsertFile,
   models, type Model, type InsertModel
 } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -162,4 +164,156 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// データベースを使用したストレージ実装
+export class DatabaseStorage implements IStorage {
+  // User operations
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+  
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+  
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+  
+  // Project operations
+  async getProject(id: number): Promise<Project | undefined> {
+    const [project] = await db.select().from(projects).where(eq(projects.id, id));
+    return project || undefined;
+  }
+  
+  async getAllProjects(): Promise<Project[]> {
+    return await db.select().from(projects);
+  }
+  
+  async createProject(insertProject: InsertProject): Promise<Project> {
+    const [project] = await db
+      .insert(projects)
+      .values(insertProject)
+      .returning();
+    return project;
+  }
+  
+  async updateProject(id: number, project: Project): Promise<Project> {
+    const { id: _, ...updateData } = project;
+    const [updatedProject] = await db
+      .update(projects)
+      .set(updateData)
+      .where(eq(projects.id, id))
+      .returning();
+    
+    if (!updatedProject) {
+      throw new Error(`Project with ID ${id} not found`);
+    }
+    
+    return updatedProject;
+  }
+  
+  async deleteProject(id: number): Promise<boolean> {
+    const [deletedProject] = await db
+      .delete(projects)
+      .where(eq(projects.id, id))
+      .returning();
+    
+    return !!deletedProject;
+  }
+  
+  // File operations
+  async getFile(id: number): Promise<File | undefined> {
+    const [file] = await db.select().from(files).where(eq(files.id, id));
+    return file || undefined;
+  }
+  
+  async getFilesByProject(projectId: number): Promise<File[]> {
+    return await db.select().from(files).where(eq(files.projectId, projectId));
+  }
+  
+  async createFile(insertFile: InsertFile): Promise<File> {
+    const [file] = await db
+      .insert(files)
+      .values(insertFile)
+      .returning();
+    return file;
+  }
+  
+  async updateFile(id: number, file: File): Promise<File> {
+    const { id: _, ...updateData } = file;
+    const [updatedFile] = await db
+      .update(files)
+      .set(updateData)
+      .where(eq(files.id, id))
+      .returning();
+    
+    if (!updatedFile) {
+      throw new Error(`File with ID ${id} not found`);
+    }
+    
+    return updatedFile;
+  }
+  
+  async deleteFile(id: number): Promise<boolean> {
+    const [deletedFile] = await db
+      .delete(files)
+      .where(eq(files.id, id))
+      .returning();
+    
+    return !!deletedFile;
+  }
+  
+  // Model operations
+  async getModel(id: number): Promise<Model | undefined> {
+    const [model] = await db.select().from(models).where(eq(models.id, id));
+    return model || undefined;
+  }
+  
+  async getModelsByFile(fileId: number): Promise<Model[]> {
+    return await db.select().from(models).where(eq(models.fileId, fileId));
+  }
+  
+  async createModel(insertModel: InsertModel): Promise<Model> {
+    const [model] = await db
+      .insert(models)
+      .values(insertModel)
+      .returning();
+    return model;
+  }
+  
+  async updateModel(id: number, model: Model): Promise<Model> {
+    const { id: _, ...updateData } = model;
+    const [updatedModel] = await db
+      .update(models)
+      .set(updateData)
+      .where(eq(models.id, id))
+      .returning();
+    
+    if (!updatedModel) {
+      throw new Error(`Model with ID ${id} not found`);
+    }
+    
+    return updatedModel;
+  }
+  
+  async deleteModel(id: number): Promise<boolean> {
+    const [deletedModel] = await db
+      .delete(models)
+      .where(eq(models.id, id))
+      .returning();
+    
+    return !!deletedModel;
+  }
+}
+
+// Uncomment to use in-memory storage instead
+// export const storage = new MemStorage();
+
+// Use database storage
+export const storage = new DatabaseStorage();
