@@ -68,21 +68,37 @@ export default function PropertyPanel() {
       // ローカルデータを更新
       setLocalElementData(prev => prev ? { ...prev, [name]: value } : null);
       
-      // 要素のプロパティを更新
-      updateElement(selectedElement.id, { [name]: value });
-      
-      // JointJSの図形にも反映 (DiagramEditorコンポーネントでuseEffectでも反映されるが、即時反映のために実装)
-      const graphElement = document.querySelector(`[model-id="${selectedElement.id}"]`);
-      if (graphElement && name === 'name') {
-        // テキストラベルを更新 (JointJSの要素が存在する場合)
-        const textElement = graphElement.querySelector('.joint-label text');
-        if (textElement) {
-          textElement.textContent = value;
+      try {
+        // 要素のプロパティを更新
+        updateElement(selectedElement.id, { [name]: value });
+        
+        // 成功メッセージ表示（オプション）
+        if (name === 'name') {
+          setSelectionStatus(`要素「${value}」を更新しました`);
         }
+        
+        // JointJSの図形にも反映 (DiagramEditorコンポーネントでuseEffectでも反映されるが、即時反映のために実装)
+        const graphElement = document.querySelector(`[model-id="${selectedElement.id}"]`);
+        if (graphElement && name === 'name') {
+          // テキストラベルを更新 (JointJSの要素が存在する場合)
+          const textElement = graphElement.querySelector('.joint-label text');
+          if (textElement) {
+            textElement.textContent = value;
+          }
+        }
+        
+        // エラーメッセージをクリア
+        setErrorMessage(null);
+        
+        // 変更を記録
+        setIsDirty(true);
+        
+        // ストアの状態を確認（デバッグ用）
+        console.log('Element updated in store:', useAppStore.getState().selectedElement);
+      } catch (error) {
+        console.error('Error updating element:', error);
+        setErrorMessage(`エラー: 要素の更新に失敗しました - ${error}`);
       }
-      
-      // 変更を記録
-      setIsDirty(true);
     }
   };
   
@@ -90,21 +106,37 @@ export default function PropertyPanel() {
     const { name, value } = e.target;
     
     if (selectedRelationship) {
-      // リレーションシップのプロパティを更新
-      updateRelationship(selectedRelationship.id, { [name]: value });
-      
-      // JointJSの図形にも反映
-      const linkElement = document.querySelector(`[model-id="${selectedRelationship.id}"]`);
-      if (linkElement && name === 'name') {
-        // テキストラベルを更新 (JointJSのリンクが存在する場合)
-        const textElement = linkElement.querySelector('.joint-label text');
-        if (textElement) {
-          textElement.textContent = value;
+      try {
+        // リレーションシップのプロパティを更新
+        updateRelationship(selectedRelationship.id, { [name]: value });
+        
+        // 成功メッセージ表示（オプション）
+        if (name === 'name' || name === 'type') {
+          setSelectionStatus(`リレーションシップ「${value}」を更新しました`);
         }
+        
+        // JointJSの図形にも反映
+        const linkElement = document.querySelector(`[model-id="${selectedRelationship.id}"]`);
+        if (linkElement && name === 'name') {
+          // テキストラベルを更新 (JointJSのリンクが存在する場合)
+          const textElement = linkElement.querySelector('.joint-label text');
+          if (textElement) {
+            textElement.textContent = value;
+          }
+        }
+        
+        // エラーメッセージをクリア
+        setErrorMessage(null);
+        
+        // 変更を記録
+        setIsDirty(true);
+        
+        // ストアの状態を確認（デバッグ用）
+        console.log('Relationship updated in store:', useAppStore.getState().selectedRelationship);
+      } catch (error) {
+        console.error('Error updating relationship:', error);
+        setErrorMessage(`エラー: リレーションシップの更新に失敗しました - ${error}`);
       }
-      
-      // 変更を記録
-      setIsDirty(true);
     }
   };
   

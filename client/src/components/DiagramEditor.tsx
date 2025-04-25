@@ -1,9 +1,9 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import Palette from './Palette';
 import { initJointGraph } from '@/utils/joint';
 import * as joint from 'jointjs';
-import { Element, Relationship, ElementType } from '@/types';
+import { Element, Relationship, ElementType, Diagram } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 
 export default function DiagramEditor() {
@@ -20,8 +20,12 @@ export default function DiagramEditor() {
     removeElement,
     removeRelationship,
     setIsDirty,
-    currentView
+    currentView,
+    setCurrentDiagram
   } = useAppStore();
+  
+  // エラーメッセージ用の状態
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<any>(null);
@@ -66,11 +70,105 @@ export default function DiagramEditor() {
       const { graph, paper } = initJointGraph(containerRef.current);
       graphRef.current = { graph, paper };
       
+      // サンプルダイアグラムの作成（初期データ）
+      const initialDiagram: Diagram = {
+        id: uuidv4(),
+        name: 'Main Diagram',
+        type: 'block',
+        elements: [],
+        relationships: []
+      };
+      
+      // ストアにダイアグラムを設定（必ず最初に設定）
+      setCurrentDiagram(initialDiagram);
+      console.log('初期ダイアグラムをストアに設定:', initialDiagram.id);
+      
       // 要素選択イベントリスナー
-      paper.on('element:pointerclick', handleElementSelect);
+      paper.on('element:pointerclick', (elementView: any) => {
+        const cellModel = elementView.model;
+        const id = cellModel.id.toString();
+        console.log('DEBUG - element:pointerclick - selected:', id);
+        
+        // 直接ストアから要素を検索（currentDiagramに依存しない）
+        const store = useAppStore.getState();
+        
+        // 既存の要素かどうかを確認
+        if (store.currentDiagram?.elements) {
+          const element = store.currentDiagram.elements.find(e => e.id === id);
+          if (element) {
+            console.log('Element selected:', element.id, element.name);
+            setSelectedElement(element);
+            setSelectedRelationship(null);
+            
+            // ストアの状態を確認
+            console.log('Store updated - selectedElement:', useAppStore.getState().selectedElement?.id);
+          } else {
+            // 新しい要素として追加
+            const newElement: Element = {
+              id,
+              name: cellModel.attr('label/text') || 'New Element',
+              type: cellModel.get('type') || 'block',
+              stereotype: 'block',
+              position: cellModel.position(),
+              size: cellModel.size()
+            };
+            
+            // 要素を追加
+            addElement(newElement);
+            setSelectedElement(newElement);
+            setSelectedRelationship(null);
+            console.log('New element created and selected:', newElement.id);
+          }
+        } else {
+          // エラー表示
+          setErrorMessage('currentDiagram が未初期化です。ページを更新してください。');
+          console.error('currentDiagram is null or has no elements array');
+        }
+      });
       
       // リンク選択イベントリスナー
-      paper.on('link:pointerclick', handleLinkSelect);
+      paper.on('link:pointerclick', (linkView: any) => {
+        const cellModel = linkView.model;
+        const id = cellModel.id.toString();
+        console.log('DEBUG - link:pointerclick - selected:', id);
+        
+        // 直接ストアから関連を検索（currentDiagramに依存しない）
+        const store = useAppStore.getState();
+        
+        if (store.currentDiagram?.relationships) {
+          const relationship = store.currentDiagram.relationships.find(r => r.id === id);
+          if (relationship) {
+            console.log('Relationship selected:', relationship.id, relationship.type);
+            setSelectedRelationship(relationship);
+            setSelectedElement(null);
+            
+            // ストアの状態を確認
+            console.log('Store updated - selectedRelationship:', useAppStore.getState().selectedRelationship?.id);
+          } else {
+            // 新しい関連として追加
+            const sourceId = cellModel.source().id;
+            const targetId = cellModel.target().id;
+            
+            const newRelationship: Relationship = {
+              id,
+              type: 'association',
+              sourceId,
+              targetId,
+              name: 'New Relationship'
+            };
+            
+            // 関連を追加
+            addRelationship(newRelationship);
+            setSelectedRelationship(newRelationship);
+            setSelectedElement(null);
+            console.log('New relationship created and selected:', newRelationship.id);
+          }
+        } else {
+          // エラー表示
+          setErrorMessage('currentDiagram が未初期化です。ページを更新してください。');
+          console.error('currentDiagram is null or has no relationships array');
+        }
+      });
       
       // 任意のセル選択イベントリスナー（要素とリンクの両方をキャッチ）
       paper.on('cell:pointerclick', (cellView: any) => {
@@ -81,65 +179,54 @@ export default function DiagramEditor() {
         
         // セルの種類によって処理を分岐
         if (cellModel.isElement()) {
-          // 要素の場合
-          if (currentDiagram) {
-            const element = currentDiagram.elements.find(e => e.id === id);
+          // 要素の場合 - element:pointerclickでも処理されるが、確実に捕捉するために実装
+          const store = useAppStore.getState();
+          if (store.currentDiagram?.elements) {
+            const element = store.currentDiagram.elements.find(e => e.id === id);
             if (element) {
               console.log('Cell clicked (element):', element.id, element.name);
               setSelectedElement(element);
               setSelectedRelationship(null);
-              
-              // ストアの状態を確認
-              console.log('Store updated - selectedElement:', useAppStore.getState().selectedElement?.id);
             } else {
-              console.warn('Element not found in currentDiagram.elements with id:', id);
-            }
-          } else {
-            console.warn('currentDiagram is null, cannot select element');
-          }
-        } else if (cellModel.isLink()) {
-          // リンク（リレーションシップ）の場合
-          if (currentDiagram) {
-            const relationship = currentDiagram.relationships.find(r => r.id === id);
-            if (relationship) {
-              console.log('Cell clicked (relationship):', relationship.id, relationship.type);
-              setSelectedRelationship(relationship);
-              setSelectedElement(null);
+              // 新しい要素として扱う
+              const newElement: Element = {
+                id,
+                name: cellModel.attr('label/text') || 'New Element',
+                type: cellModel.get('type') || 'block',
+                stereotype: 'block',
+                position: cellModel.position(),
+                size: cellModel.size()
+              };
               
-              // ストアの状態を確認
-              console.log('Store updated - selectedRelationship:', useAppStore.getState().selectedRelationship?.id);
-            } else {
-              console.warn('Relationship not found in currentDiagram.relationships with id:', id);
-            }
-          } else {
-            console.warn('currentDiagram is null, cannot select relationship');
-          }
-        }
-      });
-      
-      // セルのダブルクリックイベントも同様に処理（UX向上）
-      paper.on('cell:pointerdblclick', (cellView: any) => {
-        const cellModel = cellView.model;
-        const id = cellModel.id.toString();
-        
-        console.log('DEBUG - cell:pointerdblclick - selected:', id);
-        
-        // セルの種類によって処理を分岐（シングルクリックと同じロジック）
-        if (cellModel.isElement()) {
-          if (currentDiagram) {
-            const element = currentDiagram.elements.find(e => e.id === id);
-            if (element) {
-              console.log('Cell double-clicked (element):', element.id, element.name);
-              setSelectedElement(element);
+              addElement(newElement);
+              setSelectedElement(newElement);
               setSelectedRelationship(null);
             }
           }
         } else if (cellModel.isLink()) {
-          if (currentDiagram) {
-            const relationship = currentDiagram.relationships.find(r => r.id === id);
+          // リンク（リレーションシップ）の場合 - link:pointerclickでも処理されるが、確実に捕捉するために実装
+          const store = useAppStore.getState();
+          if (store.currentDiagram?.relationships) {
+            const relationship = store.currentDiagram.relationships.find(r => r.id === id);
             if (relationship) {
-              console.log('Cell double-clicked (relationship):', relationship.id, relationship.type);
+              console.log('Cell clicked (relationship):', relationship.id, relationship.type);
               setSelectedRelationship(relationship);
+              setSelectedElement(null);
+            } else {
+              // 新しい関連として扱う
+              const sourceId = cellModel.source().id;
+              const targetId = cellModel.target().id;
+              
+              const newRelationship: Relationship = {
+                id,
+                type: 'association',
+                sourceId,
+                targetId,
+                name: 'New Relationship'
+              };
+              
+              addRelationship(newRelationship);
+              setSelectedRelationship(newRelationship);
               setSelectedElement(null);
             }
           }
@@ -178,7 +265,7 @@ export default function DiagramEditor() {
         paper.off('blank:pointerclick');
       }
     };
-  }, [handleElementSelect, handleLinkSelect, setSelectedElement, setSelectedRelationship, updateElement, setIsDirty]);
+  }, [handleElementSelect, handleLinkSelect, setSelectedElement, setSelectedRelationship, setCurrentDiagram, addElement, addRelationship, updateElement, setIsDirty, setErrorMessage]);
   
   // ダイアグラムデータが変更された時にグラフを更新
   useEffect(() => {
@@ -511,7 +598,18 @@ export default function DiagramEditor() {
   };
   
   return (
-    <div className="flex-1 bg-white p-4 overflow-auto">
+    <div className="flex-1 bg-white p-4 overflow-auto relative">
+      {errorMessage && (
+        <div className="absolute top-8 left-1/2 transform -translate-x-1/2 z-50 bg-red-50 text-red-500 rounded-md shadow-md px-4 py-2 border border-red-200">
+          {errorMessage}
+          <button 
+            className="ml-2 text-red-700 hover:text-red-900" 
+            onClick={() => setErrorMessage(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
       <div 
         ref={containerRef} 
         className="border border-neutral-300 rounded-lg bg-neutral-50 h-full flex items-center justify-center relative"
