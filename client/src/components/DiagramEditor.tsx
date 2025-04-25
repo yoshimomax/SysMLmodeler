@@ -1,76 +1,223 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
 import Palette from './Palette';
 import { initJointGraph } from '@/utils/joint';
 import * as joint from 'jointjs';
+import { Element, Relationship, ElementType } from '@/types';
+import { v4 as uuidv4 } from 'uuid';
 
 export default function DiagramEditor() {
   const { 
     currentDiagram, 
-    selectedElement, 
+    selectedElement,
+    selectedRelationship,
     setSelectedElement,
+    setSelectedRelationship,
+    updateElement,
+    updateRelationship,
+    addElement,
+    addRelationship,
+    removeElement,
+    removeRelationship,
+    setIsDirty,
     currentView
   } = useAppStore();
   
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<any>(null);
+  // マップを使用して要素IDとJointJS要素間のマッピングを維持
+  const elementsMapRef = useRef<Map<string, joint.dia.Element>>(new Map());
+  const relationshipsMapRef = useRef<Map<string, joint.dia.Link>>(new Map());
   
+  // ダイアグラム要素の選択ハンドラ
+  const handleElementSelect = useCallback((elementView: any) => {
+    const cellModel = elementView.model;
+    const id = cellModel.id.toString();
+    
+    // 現在のダイアグラムから選択された要素を検索
+    if (currentDiagram) {
+      const element = currentDiagram.elements.find(e => e.id === id);
+      if (element) {
+        setSelectedElement(element);
+        setSelectedRelationship(null); // 要素が選択されたらリレーションシップの選択を解除
+      }
+    }
+  }, [currentDiagram, setSelectedElement, setSelectedRelationship]);
+  
+  // リレーションシップの選択ハンドラ
+  const handleLinkSelect = useCallback((linkView: any) => {
+    const cellModel = linkView.model;
+    const id = cellModel.id.toString();
+    
+    // 現在のダイアグラムから選択されたリレーションシップを検索
+    if (currentDiagram) {
+      const relationship = currentDiagram.relationships.find(r => r.id === id);
+      if (relationship) {
+        setSelectedRelationship(relationship);
+        setSelectedElement(null); // リレーションシップが選択されたら要素の選択を解除
+      }
+    }
+  }, [currentDiagram, setSelectedElement, setSelectedRelationship]);
+  
+  // JointJSグラフの初期化
   useEffect(() => {
     if (containerRef.current && !graphRef.current) {
       const { graph, paper } = initJointGraph(containerRef.current);
       graphRef.current = { graph, paper };
       
-      // Example: Add event listeners for element selection
-      paper.on('element:pointerclick', (elementView: any) => {
-        const element = elementView.model;
-        const id = element.id;
-        const name = element.attr('text/text');
-        const type = element.get('type') || 'block';
+      // 要素選択イベントリスナー
+      paper.on('element:pointerclick', handleElementSelect);
+      
+      // リンク選択イベントリスナー
+      paper.on('link:pointerclick', handleLinkSelect);
+      
+      // 要素移動イベントリスナー
+      paper.on('element:pointerup', (elementView: any) => {
+        const cellModel = elementView.model;
+        const id = cellModel.id.toString();
+        const position = cellModel.position();
         
-        setSelectedElement({
-          id,
-          name,
-          type,
-          stereotype: 'block',
-          description: 'The main system component that contains subsystems.',
-        });
+        // 位置情報でモデルを更新
+        if (currentDiagram) {
+          updateElement(id, { position: { x: position.x, y: position.y } });
+          setIsDirty(true);
+        }
+      });
+      
+      // キャンバス空白クリックで選択解除
+      paper.on('blank:pointerclick', () => {
+        setSelectedElement(null);
+        setSelectedRelationship(null);
       });
     }
     
     return () => {
       if (graphRef.current) {
-        // Clean up as needed
+        const { paper } = graphRef.current;
+        // イベントリスナー削除
+        paper.off('element:pointerclick');
+        paper.off('link:pointerclick');
+        paper.off('element:pointerup');
+        paper.off('blank:pointerclick');
       }
     };
-  }, []);
+  }, [handleElementSelect, handleLinkSelect, setSelectedElement, setSelectedRelationship, updateElement, setIsDirty]);
   
-  // Create a mock diagram with sample data for demonstration
+  // ダイアグラムデータが変更された時にグラフを更新
   useEffect(() => {
-    if (graphRef.current && !currentDiagram) {
+    if (!graphRef.current || !currentDiagram) return;
+    
+    const { graph } = graphRef.current;
+    
+    // グラフをクリア（マッピングも全て削除）
+    graph.clear();
+    elementsMapRef.current.clear();
+    relationshipsMapRef.current.clear();
+    
+    // 要素の描画
+    currentDiagram.elements.forEach(element => {
+      // 位置情報がない場合はデフォルト値を設定
+      const position = element.position || { x: 100, y: 100 };
+      
+      // 要素を作成
+      const jointElement = createBlockElement(
+        graph,
+        element.name,
+        position.x,
+        position.y,
+        element.type,
+        element.stereotype || 'block'
+      );
+      
+      // 作成された要素に実際のIDを設定
+      jointElement.id = element.id;
+      
+      // 要素をマップに保存
+      elementsMapRef.current.set(element.id, jointElement);
+    });
+    
+    // リレーションシップの描画
+    currentDiagram.relationships.forEach(relationship => {
+      const sourceElement = elementsMapRef.current.get(relationship.sourceId);
+      const targetElement = elementsMapRef.current.get(relationship.targetId);
+      
+      if (sourceElement && targetElement) {
+        const link = createRelationship(
+          graph,
+          sourceElement,
+          targetElement,
+          relationship.type,
+          relationship.name || ''
+        );
+        
+        // 作成されたリンクに実際のIDを設定
+        if (link) {
+          link.id = relationship.id;
+          relationshipsMapRef.current.set(relationship.id, link);
+        }
+      }
+    });
+    
+  }, [currentDiagram]);
+  
+  // 新しい要素追加ユーティリティ
+  const addNewElement = useCallback((type: ElementType, x: number, y: number) => {
+    if (!graphRef.current || !currentDiagram) return;
+    
+    const id = uuidv4();
+    const name = `New ${type}`;
+    
+    // ストアに要素を追加
+    const newElement: Element = {
+      id,
+      name,
+      type,
+      stereotype: type,
+      position: { x, y },
+      size: { width: 120, height: 80 }
+    };
+    
+    addElement(newElement);
+    setIsDirty(true);
+    
+    // 要素を選択
+    setSelectedElement(newElement);
+  }, [currentDiagram, addElement, setSelectedElement, setIsDirty]);
+  
+  // サンプルダイアグラム作成（初回表示時）
+  useEffect(() => {
+    if (graphRef.current && (!currentDiagram || currentDiagram.elements.length === 0)) {
       const { graph } = graphRef.current;
       
       // This would normally come from an API or store
-      // Setting up a basic example diagram
+      // サンプルダイアグラム設定
       
-      // Create the system block
-      const system = createBlockElement(graph, 'System', 200, 100);
+      // システムブロック作成
+      const system = createBlockElement(graph, 'System', 200, 100, 'block', 'block');
       
-      // Create the subsystem block
-      const subsystem = createBlockElement(graph, 'Subsystem', 100, 250);
+      // サブシステムブロック作成
+      const subsystem = createBlockElement(graph, 'Subsystem', 100, 250, 'block', 'block');
       
-      // Create the component block
-      const component = createBlockElement(graph, 'Component', 300, 250);
+      // コンポーネントブロック作成
+      const component = createBlockElement(graph, 'Component', 300, 250, 'block', 'block');
       
-      // Create the composition relationship
+      // コンポジション関係作成
       createRelationship(graph, system, subsystem, 'composition', 'contains');
       
-      // Create the aggregation relationship
+      // 集約関係作成
       createRelationship(graph, system, component, 'aggregation', 'has');
     }
-  }, [graphRef.current]);
+  }, [graphRef.current, currentDiagram]);
   
   // Helper function to create a block element
-  const createBlockElement = (graph: any, name: string, x: number, y: number) => {
+  const createBlockElement = (
+    graph: any, 
+    name: string, 
+    x: number, 
+    y: number, 
+    elementType: ElementType = 'block',
+    stereotype: string = 'block'
+  ) => {
     const block = new joint.shapes.standard.Rectangle({
       position: { x, y },
       size: { width: 120, height: 80 },
@@ -95,10 +242,13 @@ export default function DiagramEditor() {
       }
     });
     
-    // Add the stereotype text
+    // Type情報を設定
+    block.set('type', elementType);
+    
+    // ステレオタイプテキストを追加
     block.attr({
       stereotype: {
-        text: '«block»',
+        text: `«${stereotype}»`,
         fill: '#212121',
         fontSize: 14,
         fontFamily: 'Roboto',

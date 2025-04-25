@@ -16,16 +16,14 @@ export async function saveModelToFile(model: SysMLModel, filename = 'project.sys
     const modelJson = JSON.stringify(model, null, 2);
     
     // Send to server to save
-    await apiRequest(`/api/models/save`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    await apiRequest(
+      'POST',
+      `/api/models/save`,
+      {
         filename,
         content: modelJson,
-      }),
-    });
+      }
+    );
     
     // Update status message
     useAppStore.getState().setStatusMessage({
@@ -55,9 +53,10 @@ export async function saveModelToFile(model: SysMLModel, filename = 'project.sys
 export async function loadModelFromFile(filename = 'project.sysml'): Promise<SysMLModel | null> {
   try {
     // Request the model file from the server
-    const response = await apiRequest(`/api/models/load?filename=${encodeURIComponent(filename)}`, {
-      method: 'GET',
-    });
+    const response = await apiRequest(
+      'GET',
+      `/api/models/load?filename=${encodeURIComponent(filename)}`
+    );
     
     if (!response.ok) {
       throw new Error(`Failed to load model: ${response.statusText}`);

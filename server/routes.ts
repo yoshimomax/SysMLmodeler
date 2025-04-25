@@ -151,43 +151,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // SysML specific endpoints
   
-  // Load a SysML model file
-  app.get('/api/sysml/load', (req, res) => {
+  // モデルファイルの保存
+  app.post('/api/models/save', (req, res) => {
     try {
-      const filePath = req.query.path as string;
+      const { filename, content } = req.body;
       
-      if (!filePath) {
-        return res.status(400).json({ error: 'File path is required' });
+      if (!filename || !content) {
+        return res.status(400).json({ error: '必須パラメータが不足しています' });
       }
       
-      // In a production implementation, this would parse SysML files
-      // For now, we return a placeholder response
-      res.json({
-        id: 'model1',
-        name: path.basename(filePath, path.extname(filePath)),
-        diagrams: [],
-        elements: [],
-        relationships: []
-      });
+      // プロジェクトルートに保存ディレクトリを作成
+      const modelsDir = path.join(process.cwd(), 'models');
+      if (!fs.existsSync(modelsDir)) {
+        fs.mkdirSync(modelsDir, { recursive: true });
+      }
+      
+      // 指定されたファイル名でモデルを保存
+      const filePath = path.join(modelsDir, filename);
+      fs.writeFileSync(filePath, content, 'utf8');
+      
+      res.json({ success: true, filePath });
     } catch (error) {
-      res.status(500).json({ error: 'Failed to load SysML model' });
+      console.error('モデル保存エラー:', error);
+      res.status(500).json({ 
+        error: '保存に失敗しました', 
+        details: error instanceof Error ? error.message : '不明なエラー'
+      });
     }
   });
   
-  // Save a SysML model file
-  app.post('/api/sysml/save', (req, res) => {
+  // モデルファイルの読み込み
+  app.get('/api/models/load', (req, res) => {
     try {
-      const { model, path } = req.body;
+      const filename = req.query.filename as string;
       
-      if (!model || !path) {
-        return res.status(400).json({ error: 'Model and path are required' });
+      if (!filename) {
+        return res.status(400).json({ error: 'ファイル名が必要です' });
       }
       
-      // In a production implementation, this would serialize and save the model
-      // For now, we just return success
-      res.json({ success: true });
+      // ファイルパスを構築
+      const modelsDir = path.join(process.cwd(), 'models');
+      const filePath = path.join(modelsDir, filename);
+      
+      // ファイルが存在するか確認
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'ファイルが見つかりません', notFound: true });
+      }
+      
+      // ファイルの内容を読み込む
+      const content = fs.readFileSync(filePath, 'utf8');
+      
+      res.json({ 
+        success: true, 
+        filename,
+        content
+      });
     } catch (error) {
-      res.status(500).json({ error: 'Failed to save SysML model' });
+      console.error('モデル読み込みエラー:', error);
+      res.status(500).json({ 
+        error: '読み込みに失敗しました', 
+        details: error instanceof Error ? error.message : '不明なエラー'
+      });
+    }
+  });
+  
+  // 利用可能なモデルファイルの一覧取得
+  app.get('/api/models/list', (req, res) => {
+    try {
+      const modelsDir = path.join(process.cwd(), 'models');
+      
+      // ディレクトリが存在しない場合は作成
+      if (!fs.existsSync(modelsDir)) {
+        fs.mkdirSync(modelsDir, { recursive: true });
+        return res.json({ models: [] });
+      }
+      
+      // ディレクトリ内のファイル一覧を取得
+      const files = fs.readdirSync(modelsDir)
+        .filter(file => file.endsWith('.sysml'));
+      
+      // 結果を返す
+      res.json({ 
+        models: files.map(filename => ({
+          filename,
+          path: path.join(modelsDir, filename),
+          lastModified: fs.statSync(path.join(modelsDir, filename)).mtime
+        }))
+      });
+    } catch (error) {
+      console.error('モデル一覧取得エラー:', error);
+      res.status(500).json({ 
+        error: 'モデル一覧の取得に失敗しました', 
+        details: error instanceof Error ? error.message : '不明なエラー'
+      });
     }
   });
   
