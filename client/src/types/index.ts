@@ -1,5 +1,8 @@
 // Common types used throughout the application
 
+// Re-export all types from sysml.ts
+export * from './sysml';
+
 export interface User {
   id: number;
   username: string;

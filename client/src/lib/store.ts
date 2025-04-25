@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Element, Relationship, Diagram, Tab, TreeItemData, PaletteItem, StatusMessage } from '@/types';
+import { Element, Relationship, Diagram, Tab, TreeItemData, PaletteItem, StatusMessage, SysMLModel } from '@/types';
 
 interface AppState {
   // User state
@@ -19,6 +19,23 @@ interface AppState {
   setSelectedElement: (element: Element | null) => void;
   selectedRelationship: Relationship | null;
   setSelectedRelationship: (relationship: Relationship | null) => void;
+  
+  // Element/Relationship operations
+  updateElement: (id: string, updates: Partial<Element>) => void;
+  updateRelationship: (id: string, updates: Partial<Relationship>) => void;
+  addElement: (element: Element) => void;
+  addRelationship: (relationship: Relationship) => void;
+  removeElement: (id: string) => void;
+  removeRelationship: (id: string) => void;
+  
+  // Model operations
+  currentModel: SysMLModel | null;
+  setCurrentModel: (model: SysMLModel | null) => void;
+  saveModel: () => SysMLModel;
+  loadModel: (model: SysMLModel) => void;
+  createNewModel: (name: string) => void;
+  isDirty: boolean;
+  setIsDirty: (isDirty: boolean) => void;
   
   // Tabs state
   tabs: Tab[];
@@ -51,7 +68,7 @@ const DEFAULT_PALETTE_ITEMS: PaletteItem[] = [
   { id: 'activity', name: 'Activity', icon: 'call_split', type: 'activity', category: 'Actions' },
 ];
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>((set, get) => ({
   // User state
   user: null,
   setUser: (user) => set({ user }),
@@ -64,11 +81,225 @@ export const useAppStore = create<AppState>((set) => ({
   
   // Diagram editor state
   currentDiagram: null,
-  setCurrentDiagram: (currentDiagram) => set({ currentDiagram }),
+  setCurrentDiagram: (currentDiagram) => set({ currentDiagram, isDirty: true }),
   selectedElement: null,
   setSelectedElement: (selectedElement) => set({ selectedElement }),
   selectedRelationship: null,
   setSelectedRelationship: (selectedRelationship) => set({ selectedRelationship }),
+  
+  // Element/Relationship operations
+  updateElement: (id, updates) => set((state) => {
+    if (!state.currentDiagram) return state;
+    
+    const updatedElements = state.currentDiagram.elements.map(element => 
+      element.id === id ? { ...element, ...updates } : element
+    );
+    
+    // If the currently selected element is updated, update it in the state too
+    const updatedSelectedElement = state.selectedElement?.id === id
+      ? { ...state.selectedElement, ...updates }
+      : state.selectedElement;
+    
+    return {
+      currentDiagram: {
+        ...state.currentDiagram,
+        elements: updatedElements
+      },
+      selectedElement: updatedSelectedElement,
+      isDirty: true
+    };
+  }),
+  
+  updateRelationship: (id, updates) => set((state) => {
+    if (!state.currentDiagram) return state;
+    
+    const updatedRelationships = state.currentDiagram.relationships.map(relationship => 
+      relationship.id === id ? { ...relationship, ...updates } : relationship
+    );
+    
+    // If the currently selected relationship is updated, update it in the state too
+    const updatedSelectedRelationship = state.selectedRelationship?.id === id
+      ? { ...state.selectedRelationship, ...updates }
+      : state.selectedRelationship;
+    
+    return {
+      currentDiagram: {
+        ...state.currentDiagram,
+        relationships: updatedRelationships
+      },
+      selectedRelationship: updatedSelectedRelationship,
+      isDirty: true
+    };
+  }),
+  
+  addElement: (element) => set((state) => {
+    if (!state.currentDiagram) return state;
+    
+    return {
+      currentDiagram: {
+        ...state.currentDiagram,
+        elements: [...state.currentDiagram.elements, element]
+      },
+      isDirty: true
+    };
+  }),
+  
+  addRelationship: (relationship) => set((state) => {
+    if (!state.currentDiagram) return state;
+    
+    return {
+      currentDiagram: {
+        ...state.currentDiagram,
+        relationships: [...state.currentDiagram.relationships, relationship]
+      },
+      isDirty: true
+    };
+  }),
+  
+  removeElement: (id) => set((state) => {
+    if (!state.currentDiagram) return state;
+    
+    // Remove the element
+    const updatedElements = state.currentDiagram.elements.filter(element => element.id !== id);
+    
+    // Remove any relationships that connect to this element
+    const updatedRelationships = state.currentDiagram.relationships.filter(
+      relationship => relationship.sourceId !== id && relationship.targetId !== id
+    );
+    
+    // Clear selected element if it was the one removed
+    const updatedSelectedElement = state.selectedElement?.id === id
+      ? null
+      : state.selectedElement;
+    
+    return {
+      currentDiagram: {
+        ...state.currentDiagram,
+        elements: updatedElements,
+        relationships: updatedRelationships
+      },
+      selectedElement: updatedSelectedElement,
+      isDirty: true
+    };
+  }),
+  
+  removeRelationship: (id) => set((state) => {
+    if (!state.currentDiagram) return state;
+    
+    const updatedRelationships = state.currentDiagram.relationships.filter(
+      relationship => relationship.id !== id
+    );
+    
+    // Clear selected relationship if it was the one removed
+    const updatedSelectedRelationship = state.selectedRelationship?.id === id
+      ? null
+      : state.selectedRelationship;
+    
+    return {
+      currentDiagram: {
+        ...state.currentDiagram,
+        relationships: updatedRelationships
+      },
+      selectedRelationship: updatedSelectedRelationship,
+      isDirty: true
+    };
+  }),
+  
+  // Model operations
+  currentModel: null,
+  setCurrentModel: (currentModel) => set({ currentModel, isDirty: false }),
+  
+  isDirty: false,
+  setIsDirty: (isDirty) => set({ isDirty }),
+  
+  saveModel: () => {
+    const state = get();
+    const currentDiagram = state.currentDiagram;
+    const currentModel = state.currentModel;
+
+    if (!currentDiagram) {
+      throw new Error('No diagram to save');
+    }
+
+    // Update or create a model
+    const model: SysMLModel = currentModel ? {
+      ...currentModel,
+      diagrams: currentModel.diagrams.map(diagram => 
+        diagram.id === currentDiagram.id ? currentDiagram : diagram
+      )
+    } : {
+      id: crypto.randomUUID(),
+      name: currentDiagram.name,
+      diagrams: [currentDiagram],
+      elements: currentDiagram.elements,
+      relationships: currentDiagram.relationships
+    };
+
+    // Set the updated model in state
+    set({ currentModel: model, isDirty: false });
+    return model;
+  },
+  
+  loadModel: (model) => {
+    // Set the loaded model
+    set({
+      currentModel: model,
+      currentDiagram: model.diagrams[0] || null,
+      selectedElement: null,
+      selectedRelationship: null,
+      isDirty: false
+    });
+    
+    // Create a tab for each diagram
+    const tabs = model.diagrams.map(diagram => ({
+      id: diagram.id,
+      name: diagram.name,
+      type: 'diagram',
+      path: `/diagrams/${diagram.id}`,
+      active: false
+    }));
+    
+    // Set the first tab as active
+    if (tabs.length > 0) {
+      tabs[0].active = true;
+    }
+    
+    set({ tabs });
+  },
+  
+  createNewModel: (name) => {
+    const newDiagram: Diagram = {
+      id: crypto.randomUUID(),
+      name: 'Main Diagram',
+      type: 'block',
+      elements: [],
+      relationships: []
+    };
+    
+    const newModel: SysMLModel = {
+      id: crypto.randomUUID(),
+      name,
+      diagrams: [newDiagram],
+      elements: [],
+      relationships: []
+    };
+    
+    // Set the new model and its first diagram as current
+    set({
+      currentModel: newModel,
+      currentDiagram: newDiagram,
+      selectedElement: null,
+      selectedRelationship: null,
+      tabs: [{
+        id: newDiagram.id,
+        name: newDiagram.name,
+        type: 'diagram',
+        path: `/diagrams/${newDiagram.id}`,
+        active: true
+      }],
+      isDirty: false
+    });
+  },
   
   // Tabs state
   tabs: [],
@@ -106,12 +337,25 @@ export const useAppStore = create<AppState>((set) => ({
     
     return { tabs: newTabs };
   }),
-  setActiveTab: (id) => set((state) => ({
-    tabs: state.tabs.map(tab => ({
+  setActiveTab: (id) => set((state) => {
+    const newTabs = state.tabs.map(tab => ({
       ...tab,
       active: tab.id === id
-    }))
-  })),
+    }));
+    
+    // Also update the current diagram if it's a diagram tab
+    const activeTab = state.tabs.find(tab => tab.id === id);
+    const updates: Partial<AppState> = { tabs: newTabs };
+    
+    if (activeTab && activeTab.type === 'diagram' && state.currentModel) {
+      const diagram = state.currentModel.diagrams.find(d => d.id === id);
+      if (diagram) {
+        updates.currentDiagram = diagram;
+      }
+    }
+    
+    return updates;
+  }),
   
   // Palette state
   paletteItems: DEFAULT_PALETTE_ITEMS,
