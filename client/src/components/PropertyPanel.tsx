@@ -65,6 +65,17 @@ export default function PropertyPanel() {
     if (selectedRelationship) {
       // リレーションシップのプロパティを更新
       updateRelationship(selectedRelationship.id, { [name]: value });
+      
+      // JointJSの図形にも反映
+      const linkElement = document.querySelector(`[model-id="${selectedRelationship.id}"]`);
+      if (linkElement && name === 'name') {
+        // テキストラベルを更新 (JointJSのリンクが存在する場合)
+        const textElement = linkElement.querySelector('.joint-label text');
+        if (textElement) {
+          textElement.textContent = value;
+        }
+      }
+      
       // 変更を記録
       setIsDirty(true);
     }

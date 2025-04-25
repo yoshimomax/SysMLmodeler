@@ -191,6 +191,58 @@ export default function DiagramEditor() {
     
   }, [currentDiagram]);
   
+  // 選択した要素の変更を監視して、JointJS要素を更新
+  useEffect(() => {
+    if (!graphRef.current || !selectedElement) return;
+    
+    // 対応するJointJS要素を取得
+    const jointElement = elementsMapRef.current.get(selectedElement.id);
+    if (!jointElement) return;
+    
+    // 要素の名前とタイプを更新
+    jointElement.attr({
+      label: {
+        text: selectedElement.name
+      },
+      stereotype: {
+        text: `«${selectedElement.stereotype || selectedElement.type}»`
+      }
+    });
+    
+    // グラフに変更を適用
+    const { graph } = graphRef.current;
+    graph.findViewByModel(jointElement)?.update();
+    
+  }, [selectedElement]);
+  
+  // 選択したリレーションシップの変更を監視して、JointJS要素を更新
+  useEffect(() => {
+    if (!graphRef.current || !selectedRelationship) return;
+    
+    // 対応するJointJS要素を取得
+    const jointLink = relationshipsMapRef.current.get(selectedRelationship.id);
+    if (!jointLink) return;
+    
+    // リンクのラベルを更新
+    jointLink.labels([{
+      position: 0.5,
+      attrs: {
+        text: {
+          text: selectedRelationship.name || '',
+          fill: '#616161',
+          fontSize: 12,
+          fontFamily: 'Roboto',
+          textAnchor: 'middle'
+        }
+      }
+    }]);
+    
+    // グラフに変更を適用
+    const { graph } = graphRef.current;
+    graph.findViewByModel(jointLink)?.update();
+    
+  }, [selectedRelationship]);
+  
   // 新しい要素追加ユーティリティ
   const addNewElement = useCallback((type: ElementType, x: number, y: number) => {
     if (!graphRef.current || !currentDiagram) return;
