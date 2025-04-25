@@ -38,6 +38,7 @@ export default function DiagramEditor() {
     if (currentDiagram) {
       const element = currentDiagram.elements.find(e => e.id === id);
       if (element) {
+        console.log('Element selected:', element.id, element.name);
         setSelectedElement(element);
         setSelectedRelationship(null); // 要素が選択されたらリレーションシップの選択を解除
       }
@@ -71,6 +72,35 @@ export default function DiagramEditor() {
       // リンク選択イベントリスナー
       paper.on('link:pointerclick', handleLinkSelect);
       
+      // 任意のセル選択イベントリスナー（要素とリンクの両方をキャッチ）
+      paper.on('cell:pointerclick', (cellView: any) => {
+        const cellModel = cellView.model;
+        const id = cellModel.id.toString();
+        
+        // セルの種類によって処理を分岐
+        if (cellModel.isElement()) {
+          // 要素の場合
+          if (currentDiagram) {
+            const element = currentDiagram.elements.find(e => e.id === id);
+            if (element) {
+              console.log('Cell clicked (element):', element.id, element.name);
+              setSelectedElement(element);
+              setSelectedRelationship(null);
+            }
+          }
+        } else if (cellModel.isLink()) {
+          // リンク（リレーションシップ）の場合
+          if (currentDiagram) {
+            const relationship = currentDiagram.relationships.find(r => r.id === id);
+            if (relationship) {
+              console.log('Cell clicked (relationship):', relationship.id, relationship.type);
+              setSelectedRelationship(relationship);
+              setSelectedElement(null);
+            }
+          }
+        }
+      });
+      
       // 要素移動イベントリスナー
       paper.on('element:pointerup', (elementView: any) => {
         const cellModel = elementView.model;
@@ -97,6 +127,7 @@ export default function DiagramEditor() {
         // イベントリスナー削除
         paper.off('element:pointerclick');
         paper.off('link:pointerclick');
+        paper.off('cell:pointerclick'); // 追加したイベントリスナーも削除
         paper.off('element:pointerup');
         paper.off('blank:pointerclick');
       }

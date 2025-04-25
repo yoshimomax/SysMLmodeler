@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Element, Relationship } from '@/types/sysml';
 import { useAppStore } from '@/lib/store';
 
@@ -8,17 +8,52 @@ export default function PropertyPanel() {
     selectedRelationship,
     updateElement,
     updateRelationship,
-    setIsDirty
+    setIsDirty,
+    currentDiagram
   } = useAppStore();
   
   const [activeTab, setActiveTab] = useState<string>('properties');
+  const [localElementData, setLocalElementData] = useState<Element | null>(null);
+  
+  // 選択要素が変更されたときにローカルデータを更新
+  useEffect(() => {
+    if (selectedElement) {
+      console.log('PropertyPanel: Selected element updated:', selectedElement.id, selectedElement.name);
+      setLocalElementData(selectedElement);
+      // プロパティタブを自動的に表示
+      setActiveTab('properties');
+    } else {
+      setLocalElementData(null);
+    }
+  }, [selectedElement]);
+  
+  // 選択解除されたときにローカルデータをクリア
+  useEffect(() => {
+    if (!selectedElement && !selectedRelationship) {
+      setLocalElementData(null);
+    }
+  }, [selectedElement, selectedRelationship]);
   
   const handleElementChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     
     if (selectedElement) {
+      // ローカルデータを更新
+      setLocalElementData(prev => prev ? { ...prev, [name]: value } : null);
+      
       // 要素のプロパティを更新
       updateElement(selectedElement.id, { [name]: value });
+      
+      // JointJSの図形にも反映 (DiagramEditorコンポーネントでuseEffectでも反映されるが、即時反映のために実装)
+      const graphElement = document.querySelector(`[model-id="${selectedElement.id}"]`);
+      if (graphElement && name === 'name') {
+        // テキストラベルを更新 (JointJSの要素が存在する場合)
+        const textElement = graphElement.querySelector('.joint-label text');
+        if (textElement) {
+          textElement.textContent = value;
+        }
+      }
+      
       // 変更を記録
       setIsDirty(true);
     }
