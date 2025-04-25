@@ -1,17 +1,38 @@
 import { useState } from 'react';
-import { Element } from '@/types/sysml';
+import { Element, Relationship } from '@/types/sysml';
+import { useAppStore } from '@/lib/store';
 
-interface PropertyPanelProps {
-  selectedElement: Element | null;
-  onPropertyChange: (property: string, value: any) => void;
-}
-
-export default function PropertyPanel({ selectedElement, onPropertyChange }: PropertyPanelProps) {
+export default function PropertyPanel() {
+  const { 
+    selectedElement, 
+    selectedRelationship,
+    updateElement,
+    updateRelationship,
+    setIsDirty
+  } = useAppStore();
+  
   const [activeTab, setActiveTab] = useState<string>('properties');
   
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleElementChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    onPropertyChange(name, value);
+    
+    if (selectedElement) {
+      // 要素のプロパティを更新
+      updateElement(selectedElement.id, { [name]: value });
+      // 変更を記録
+      setIsDirty(true);
+    }
+  };
+  
+  const handleRelationshipChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    
+    if (selectedRelationship) {
+      // リレーションシップのプロパティを更新
+      updateRelationship(selectedRelationship.id, { [name]: value });
+      // 変更を記録
+      setIsDirty(true);
+    }
   };
   
   return (
@@ -54,7 +75,7 @@ export default function PropertyPanel({ selectedElement, onPropertyChange }: Pro
                   name="name"
                   className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                   value={selectedElement.name || ''}
-                  onChange={handleInputChange}
+                  onChange={handleElementChange}
                 />
               </div>
               <div>
@@ -63,11 +84,17 @@ export default function PropertyPanel({ selectedElement, onPropertyChange }: Pro
                   name="type"
                   className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                   value={selectedElement.type || 'block'}
-                  onChange={handleInputChange}
+                  onChange={handleElementChange}
                 >
                   <option value="block">Block</option>
                   <option value="part">Part</option>
                   <option value="package">Package</option>
+                  <option value="action">Action</option>
+                  <option value="state">State</option>
+                  <option value="requirement">Requirement</option>
+                  <option value="port">Port</option>
+                  <option value="activity">Activity</option>
+                  <option value="interface">Interface</option>
                 </select>
               </div>
               <div>
@@ -77,7 +104,7 @@ export default function PropertyPanel({ selectedElement, onPropertyChange }: Pro
                   name="stereotype"
                   className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                   value={selectedElement.stereotype || 'block'}
-                  onChange={handleInputChange}
+                  onChange={handleElementChange}
                 />
               </div>
               <div>
@@ -99,13 +126,75 @@ export default function PropertyPanel({ selectedElement, onPropertyChange }: Pro
                 className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                 rows={2}
                 value={selectedElement.description || ''}
-                onChange={handleInputChange}
+                onChange={handleElementChange}
+              />
+            </div>
+          </div>
+        ) : activeTab === 'properties' && selectedRelationship ? (
+          <div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Name</label>
+                <input 
+                  type="text" 
+                  name="name"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                  value={selectedRelationship.name || ''}
+                  onChange={handleRelationshipChange}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Type</label>
+                <select 
+                  name="type"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                  value={selectedRelationship.type || 'association'}
+                  onChange={handleRelationshipChange}
+                >
+                  <option value="association">Association</option>
+                  <option value="composition">Composition</option>
+                  <option value="aggregation">Aggregation</option>
+                  <option value="inheritance">Inheritance</option>
+                  <option value="dependency">Dependency</option>
+                  <option value="allocation">Allocation</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Source</label>
+                <input 
+                  type="text" 
+                  name="sourceName"
+                  className="w-full px-3 py-2 border border-neutral-300 bg-neutral-50 rounded-md shadow-sm"
+                  value={selectedRelationship.sourceName || ''}
+                  disabled
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Target</label>
+                <input 
+                  type="text" 
+                  name="targetName"
+                  className="w-full px-3 py-2 border border-neutral-300 bg-neutral-50 rounded-md shadow-sm"
+                  value={selectedRelationship.targetName || ''}
+                  disabled
+                />
+              </div>
+            </div>
+            
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-neutral-700 mb-1">ID</label>
+              <input 
+                type="text" 
+                name="id"
+                className="w-full px-3 py-2 border border-neutral-300 bg-neutral-50 rounded-md shadow-sm"
+                value={selectedRelationship.id || ''}
+                disabled
               />
             </div>
           </div>
         ) : activeTab === 'properties' ? (
           <div className="flex h-full items-center justify-center text-neutral-500">
-            Select an element to view and edit its properties
+            Select an element or relationship to view and edit its properties
           </div>
         ) : (
           <div className="flex h-full items-center justify-center text-neutral-500">
