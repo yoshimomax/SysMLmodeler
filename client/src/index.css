@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Source+Code+Pro:wght@400;500&display=swap');
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 13%;
+  --muted: 240 4.8% 95.9%;
+  --muted-foreground: 240 3.8% 46.1%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 13%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 13%;
+  --border: 240 5.9% 90%;
+  --input: 240 5.9% 90%;
+  --primary: 238 90% 48%;
+  --primary-foreground: 0 0% 100%;
+  --primary-light: 238 75% 67%;
+  --primary-dark: 238 92% 44%;
+  --secondary: 328 73% 57%;
+  --secondary-foreground: 0 0% 100%;
+  --secondary-light: 328 73% 67%;
+  --secondary-dark: 328 73% 47%;
+  --accent: 240 4.8% 95.9%;
+  --accent-foreground: 240 5.9% 10%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --ring: 240 5% 64.9%;
+  --radius: 0.5rem;
+  --success: 122 39% 49%;
+  --error: 358 75% 56%;
+  --warning: 36 100% 50%;
+  --info: 206 89% 54%;
+}
+
+.dark {
+  --background: 0 0% 13%;
+  --foreground: 0 0% 98%;
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
+  --popover: 0 0% 13%;
+  --popover-foreground: 0 0% 98%;
+  --card: 0 0% 13%;
+  --card-foreground: 0 0% 98%;
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  --primary: 238 90% 48%;
+  --primary-foreground: 0 0% 100%;
+  --primary-light: 238 75% 67%;
+  --primary-dark: 238 92% 44%;
+  --secondary: 328 73% 57%;
+  --secondary-foreground: 0 0% 100%;
+  --secondary-light: 328 73% 67%;
+  --secondary-dark: 328 73% 47%;
+  --accent: 240 3.7% 15.9%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --ring: 240 4.9% 83.9%;
+  --success: 122 39% 49%;
+  --error: 358 75% 56%;
+  --warning: 36 100% 50%;
+  --info: 206 89% 54%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+}
