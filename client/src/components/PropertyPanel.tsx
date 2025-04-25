@@ -14,23 +14,50 @@ export default function PropertyPanel() {
   
   const [activeTab, setActiveTab] = useState<string>('properties');
   const [localElementData, setLocalElementData] = useState<Element | null>(null);
+  const [selectionStatus, setSelectionStatus] = useState<string>('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   // 選択要素が変更されたときにローカルデータを更新
   useEffect(() => {
     if (selectedElement) {
       console.log('PropertyPanel: Selected element updated:', selectedElement.id, selectedElement.name);
       setLocalElementData(selectedElement);
+      // 状態をクリア
+      setErrorMessage(null);
+      setSelectionStatus(`要素「${selectedElement.name}」を選択中（ID: ${selectedElement.id}）`);
+      
       // プロパティタブを自動的に表示
       setActiveTab('properties');
     } else {
       setLocalElementData(null);
+      // 何も選択されていない状態を記録
+      if (!selectedRelationship) {
+        setSelectionStatus('要素が選択されていません');
+      }
     }
   }, [selectedElement]);
+  
+  // リレーションシップ選択の監視
+  useEffect(() => {
+    if (selectedRelationship) {
+      console.log('PropertyPanel: Selected relationship updated:', selectedRelationship.id, selectedRelationship.type);
+      // 状態をクリア
+      setErrorMessage(null);
+      setSelectionStatus(`リレーションシップ「${selectedRelationship.type}」を選択中（ID: ${selectedRelationship.id}）`);
+      
+      // プロパティタブを自動的に表示
+      setActiveTab('properties');
+    } else if (!selectedElement) {
+      // 何も選択されていない場合
+      setSelectionStatus('何も選択されていません');
+    }
+  }, [selectedRelationship]);
   
   // 選択解除されたときにローカルデータをクリア
   useEffect(() => {
     if (!selectedElement && !selectedRelationship) {
       setLocalElementData(null);
+      setSelectionStatus('何も選択されていません');
     }
   }, [selectedElement, selectedRelationship]);
   
@@ -239,8 +266,18 @@ export default function PropertyPanel() {
             </div>
           </div>
         ) : activeTab === 'properties' ? (
-          <div className="flex h-full items-center justify-center text-neutral-500">
-            Select an element or relationship to view and edit its properties
+          <div className="flex flex-col h-full items-center justify-center text-neutral-500">
+            <p>Select an element or relationship to view and edit its properties</p>
+            {selectionStatus && (
+              <div className="mt-4 p-2 bg-neutral-100 rounded text-sm w-full max-w-md text-center">
+                {selectionStatus}
+              </div>
+            )}
+            {errorMessage && (
+              <div className="mt-2 p-2 bg-red-50 text-red-500 rounded text-sm w-full max-w-md">
+                {errorMessage}
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex h-full items-center justify-center text-neutral-500">

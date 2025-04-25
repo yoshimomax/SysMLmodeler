@@ -77,6 +77,8 @@ export default function DiagramEditor() {
         const cellModel = cellView.model;
         const id = cellModel.id.toString();
         
+        console.log('DEBUG - cell:pointerclick - selected:', id);
+        
         // セルの種類によって処理を分岐
         if (cellModel.isElement()) {
           // 要素の場合
@@ -86,7 +88,14 @@ export default function DiagramEditor() {
               console.log('Cell clicked (element):', element.id, element.name);
               setSelectedElement(element);
               setSelectedRelationship(null);
+              
+              // ストアの状態を確認
+              console.log('Store updated - selectedElement:', useAppStore.getState().selectedElement?.id);
+            } else {
+              console.warn('Element not found in currentDiagram.elements with id:', id);
             }
+          } else {
+            console.warn('currentDiagram is null, cannot select element');
           }
         } else if (cellModel.isLink()) {
           // リンク（リレーションシップ）の場合
@@ -94,6 +103,42 @@ export default function DiagramEditor() {
             const relationship = currentDiagram.relationships.find(r => r.id === id);
             if (relationship) {
               console.log('Cell clicked (relationship):', relationship.id, relationship.type);
+              setSelectedRelationship(relationship);
+              setSelectedElement(null);
+              
+              // ストアの状態を確認
+              console.log('Store updated - selectedRelationship:', useAppStore.getState().selectedRelationship?.id);
+            } else {
+              console.warn('Relationship not found in currentDiagram.relationships with id:', id);
+            }
+          } else {
+            console.warn('currentDiagram is null, cannot select relationship');
+          }
+        }
+      });
+      
+      // セルのダブルクリックイベントも同様に処理（UX向上）
+      paper.on('cell:pointerdblclick', (cellView: any) => {
+        const cellModel = cellView.model;
+        const id = cellModel.id.toString();
+        
+        console.log('DEBUG - cell:pointerdblclick - selected:', id);
+        
+        // セルの種類によって処理を分岐（シングルクリックと同じロジック）
+        if (cellModel.isElement()) {
+          if (currentDiagram) {
+            const element = currentDiagram.elements.find(e => e.id === id);
+            if (element) {
+              console.log('Cell double-clicked (element):', element.id, element.name);
+              setSelectedElement(element);
+              setSelectedRelationship(null);
+            }
+          }
+        } else if (cellModel.isLink()) {
+          if (currentDiagram) {
+            const relationship = currentDiagram.relationships.find(r => r.id === id);
+            if (relationship) {
+              console.log('Cell double-clicked (relationship):', relationship.id, relationship.type);
               setSelectedRelationship(relationship);
               setSelectedElement(null);
             }
@@ -128,6 +173,7 @@ export default function DiagramEditor() {
         paper.off('element:pointerclick');
         paper.off('link:pointerclick');
         paper.off('cell:pointerclick'); // 追加したイベントリスナーも削除
+        paper.off('cell:pointerdblclick'); // ダブルクリックイベントリスナーも削除
         paper.off('element:pointerup');
         paper.off('blank:pointerclick');
       }
