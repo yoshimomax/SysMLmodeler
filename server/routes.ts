@@ -151,26 +151,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // SysML specific endpoints
   
-  // モデルファイルの保存
-  app.post('/api/models/save', (req, res) => {
+  // モデルの保存（データベース使用）
+  app.post('/api/models/save', async (req, res) => {
     try {
-      const { filename, content } = req.body;
+      const { filename, content, fileId } = req.body;
       
       if (!filename || !content) {
         return res.status(400).json({ error: '必須パラメータが不足しています' });
       }
       
-      // プロジェクトルートに保存ディレクトリを作成
-      const modelsDir = path.join(process.cwd(), 'models');
-      if (!fs.existsSync(modelsDir)) {
-        fs.mkdirSync(modelsDir, { recursive: true });
+      // データベースにモデルを保存する準備
+      const now = new Date().toISOString();
+      let file;
+      
+      // ファイルIDが指定されていない場合、新しいファイルを作成
+      if (!fileId) {
+        // デフォルトプロジェクトIDは1とする（実際には認証とユーザーの選択に基づくべき）
+        const projectId = 1;
+        
+        file = await storage.createFile({
+          path: `/models/${filename}`,
+          name: filename,
+          type: 'model',
+          content: null, // モデルデータはmodelsテーブルに保存
+          projectId,
+          parentId: null,
+          createdAt: now,
+          updatedAt: now
+        });
+      } else {
+        // 既存のファイルを取得
+        file = await storage.getFile(parseInt(fileId));
+        if (!file) {
+          return res.status(404).json({ error: 'ファイルが見つかりません' });
+        }
       }
       
-      // 指定されたファイル名でモデルを保存
-      const filePath = path.join(modelsDir, filename);
-      fs.writeFileSync(filePath, content, 'utf8');
+      // ファイルのモデルを保存または更新
+      // 既存のモデルを探す
+      const existingModels = await storage.getModelsByFile(file.id);
+      let model;
       
-      res.json({ success: true, filePath });
+      if (existingModels.length > 0) {
+        // 既存のモデルを更新
+        model = await storage.updateModel(existingModels[0].id, {
+          ...existingModels[0],
+          name: filename,
+          type: 'sysml',
+          data: JSON.parse(content),
+        });
+      } else {
+        // 新しいモデルを作成
+        model = await storage.createModel({
+          name: filename,
+          type: 'sysml',
+          data: JSON.parse(content),
+          fileId: file.id
+        });
+      }
+      
+      res.json({ 
+        success: true, 
+        model,
+        file
+      });
     } catch (error) {
       console.error('モデル保存エラー:', error);
       res.status(500).json({ 
@@ -180,31 +224,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // モデルファイルの読み込み
-  app.get('/api/models/load', (req, res) => {
+  // モデルの読み込み（データベース使用）
+  app.get('/api/models/load', async (req, res) => {
     try {
       const filename = req.query.filename as string;
+      const modelId = req.query.id as string;
       
-      if (!filename) {
-        return res.status(400).json({ error: 'ファイル名が必要です' });
+      if (!filename && !modelId) {
+        return res.status(400).json({ error: 'ファイル名またはモデルIDが必要です' });
       }
       
-      // ファイルパスを構築
-      const modelsDir = path.join(process.cwd(), 'models');
-      const filePath = path.join(modelsDir, filename);
+      let model;
       
-      // ファイルが存在するか確認
-      if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ error: 'ファイルが見つかりません', notFound: true });
+      if (modelId) {
+        // IDでモデルを検索
+        model = await storage.getModel(parseInt(modelId));
+      } else {
+        // ファイル名に基づいて検索
+        // ファイルを見つける
+        const files = await storage.getAllFiles();
+        const file = files.find((f: { name: string }) => f.name === filename);
+        
+        if (!file) {
+          return res.status(404).json({ error: 'ファイルが見つかりません', notFound: true });
+        }
+        
+        // ファイルに関連するモデルを取得
+        const models = await storage.getModelsByFile(file.id);
+        if (models.length === 0) {
+          return res.status(404).json({ error: 'モデルが見つかりません', notFound: true });
+        }
+        
+        model = models[0];
       }
       
-      // ファイルの内容を読み込む
-      const content = fs.readFileSync(filePath, 'utf8');
+      if (!model) {
+        return res.status(404).json({ error: 'モデルが見つかりません', notFound: true });
+      }
+      
+      // モデルデータをJSON文字列に変換
+      const content = JSON.stringify(model.data);
       
       res.json({ 
         success: true, 
-        filename,
-        content
+        filename: model.name,
+        content,
+        model
       });
     } catch (error) {
       console.error('モデル読み込みエラー:', error);
@@ -215,29 +280,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // 利用可能なモデルファイルの一覧取得
-  app.get('/api/models/list', (req, res) => {
+  // 利用可能なモデル一覧の取得（データベース使用）
+  app.get('/api/models/list', async (req, res) => {
     try {
-      const modelsDir = path.join(process.cwd(), 'models');
+      // すべてのモデルを取得
+      const allModels = await storage.getAllModels();
       
-      // ディレクトリが存在しない場合は作成
-      if (!fs.existsSync(modelsDir)) {
-        fs.mkdirSync(modelsDir, { recursive: true });
-        return res.json({ models: [] });
-      }
-      
-      // ディレクトリ内のファイル一覧を取得
-      const files = fs.readdirSync(modelsDir)
-        .filter(file => file.endsWith('.sysml'));
+      // 対応するファイル情報も取得
+      const modelsList = await Promise.all(
+        allModels.map(async (model: { id: number; name: string; type: string; fileId: number | null; data: unknown }) => {
+          let file = null;
+          if (model.fileId) {
+            file = await storage.getFile(model.fileId);
+          }
+          
+          return {
+            id: model.id,
+            name: model.name,
+            type: model.type,
+            filename: model.name,
+            fileId: model.fileId,
+            filePath: file ? file.path : null,
+            lastModified: file ? file.updatedAt : null
+          };
+        })
+      );
       
       // 結果を返す
-      res.json({ 
-        models: files.map(filename => ({
-          filename,
-          path: path.join(modelsDir, filename),
-          lastModified: fs.statSync(path.join(modelsDir, filename)).mtime
-        }))
-      });
+      res.json({ models: modelsList });
     } catch (error) {
       console.error('モデル一覧取得エラー:', error);
       res.status(500).json({ 

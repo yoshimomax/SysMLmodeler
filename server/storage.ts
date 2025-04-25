@@ -24,6 +24,7 @@ export interface IStorage {
   // File operations
   getFile(id: number): Promise<File | undefined>;
   getFilesByProject(projectId: number): Promise<File[]>;
+  getAllFiles(): Promise<File[]>; // 全ファイル取得メソッド追加
   createFile(file: InsertFile): Promise<File>;
   updateFile(id: number, file: File): Promise<File>;
   deleteFile(id: number): Promise<boolean>;
@@ -31,6 +32,7 @@ export interface IStorage {
   // Model operations
   getModel(id: number): Promise<Model | undefined>;
   getModelsByFile(fileId: number): Promise<Model[]>;
+  getAllModels(): Promise<Model[]>; // 全モデル取得メソッド追加
   createModel(model: InsertModel): Promise<Model>;
   updateModel(id: number, model: Model): Promise<Model>;
   deleteModel(id: number): Promise<boolean>;
@@ -121,6 +123,10 @@ export class MemStorage implements IStorage {
       .filter(file => file.projectId === projectId);
   }
   
+  async getAllFiles(): Promise<File[]> {
+    return Array.from(this.files.values());
+  }
+  
   async createFile(insertFile: InsertFile): Promise<File> {
     const id = this.fileId++;
     const file: File = { ...insertFile, id };
@@ -145,6 +151,10 @@ export class MemStorage implements IStorage {
   async getModelsByFile(fileId: number): Promise<Model[]> {
     return Array.from(this.models.values())
       .filter(model => model.fileId === fileId);
+  }
+  
+  async getAllModels(): Promise<Model[]> {
+    return Array.from(this.models.values());
   }
   
   async createModel(insertModel: InsertModel): Promise<Model> {
@@ -237,6 +247,10 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(files).where(eq(files.projectId, projectId));
   }
   
+  async getAllFiles(): Promise<File[]> {
+    return await db.select().from(files);
+  }
+  
   async createFile(insertFile: InsertFile): Promise<File> {
     const [file] = await db
       .insert(files)
@@ -277,6 +291,10 @@ export class DatabaseStorage implements IStorage {
   
   async getModelsByFile(fileId: number): Promise<Model[]> {
     return await db.select().from(models).where(eq(models.fileId, fileId));
+  }
+  
+  async getAllModels(): Promise<Model[]> {
+    return await db.select().from(models);
   }
   
   async createModel(insertModel: InsertModel): Promise<Model> {
