@@ -27,6 +27,8 @@ export interface KerML_Type extends KerML_Element {
   isAbstract?: boolean;  // 抽象型かどうか
   isConjugated?: boolean; // 共役型かどうか
   features?: KerML_Element[]; // 特性のリスト
+  multiplicity?: string;  // 多重度 (1, 0..1, 1..*, * など)
+  specializations?: string[]; // 特化対象の型ID配列
 }
 
 /**
@@ -52,6 +54,7 @@ export interface KerML_Feature extends KerML_Type {
   isEnd?: boolean;       // 関連の終端かどうか
   direction?: 'in' | 'out' | 'inout'; // 方向
   type?: string;         // 型のUUID
+  redefinitions?: string[]; // 再定義する特性のIDリスト
 }
 
 /**

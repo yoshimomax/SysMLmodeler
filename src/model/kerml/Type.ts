@@ -32,6 +32,12 @@ export class Type {
   /** 共役型かどうか */
   isConjugated: boolean = false;
   
+  /** 多重度 (1, 0..1, 1..*, * など) */
+  multiplicity?: string;
+  
+  /** 特化対象の型ID配列 (is-a, specialization関係) */
+  specializationIds: string[] = [];
+  
   /** 型の特性リスト */
   private _features: Feature[] = [];
   
@@ -48,6 +54,8 @@ export class Type {
     description?: string;
     isAbstract?: boolean;
     isConjugated?: boolean;
+    multiplicity?: string;
+    specializationIds?: string[];
     features?: Feature[];
   } = {}) {
     this.id = options.id || uuidv4();
@@ -56,6 +64,11 @@ export class Type {
     this.shortName = options.shortName;
     this.qualifiedName = options.qualifiedName;
     this.description = options.description;
+    this.multiplicity = options.multiplicity;
+    
+    if (options.specializationIds) {
+      this.specializationIds = [...options.specializationIds];
+    }
     
     if (options.isAbstract !== undefined) {
       this.isAbstract = options.isAbstract;
@@ -131,7 +144,9 @@ export class Type {
       description: this.description,
       isAbstract: this.isAbstract,
       isConjugated: this.isConjugated,
-      features: this._features.map(f => f.toJSON())
+      features: this._features.map(f => f.toJSON()),
+      multiplicity: this.multiplicity,
+      specializations: this.specializationIds.length > 0 ? this.specializationIds : undefined
     };
   }
   
@@ -150,7 +165,9 @@ export class Type {
       qualifiedName: json.qualifiedName,
       description: json.description,
       isAbstract: json.isAbstract,
-      isConjugated: json.isConjugated
+      isConjugated: json.isConjugated,
+      multiplicity: json.multiplicity,
+      specializationIds: json.specializations
     });
     
     // Feature情報は既に生成されたインスタンスを使用

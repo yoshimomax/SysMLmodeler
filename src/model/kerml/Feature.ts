@@ -32,6 +32,9 @@ export class Feature extends Type {
   /** 方向 */
   direction?: 'in' | 'out' | 'inout';
   
+  /** 再定義対象のFeature ID配列 */
+  redefinitionIds: string[] = [];
+  
   /** 型参照ID */
   private _typeId?: string;
   
@@ -57,6 +60,7 @@ export class Feature extends Type {
     isEnd?: boolean;
     direction?: 'in' | 'out' | 'inout';
     typeId?: string;
+    redefinitionIds?: string[];
     features?: Feature[];
   } = {}) {
     // 親クラスのコンストラクタを呼び出し
@@ -100,6 +104,10 @@ export class Feature extends Type {
       this.isEnd = options.isEnd;
     }
     
+    if (options.redefinitionIds) {
+      this.redefinitionIds = [...options.redefinitionIds];
+    }
+    
     this.direction = options.direction;
     this._typeId = options.typeId;
   }
@@ -134,7 +142,8 @@ export class Feature extends Type {
       isDerived: this.isDerived,
       isEnd: this.isEnd,
       direction: this.direction,
-      type: this._typeId
+      type: this._typeId,
+      redefinitions: this.redefinitionIds.length > 0 ? this.redefinitionIds : undefined
     } as KerML_Feature;
   }
   
@@ -162,7 +171,8 @@ export class Feature extends Type {
       isDerived: json.isDerived,
       isEnd: json.isEnd,
       direction: json.direction,
-      typeId: json.type
+      typeId: json.type,
+      redefinitionIds: json.redefinitions
     });
     
     // 入れ子のFeature情報は既に生成されたインスタンスを使用
