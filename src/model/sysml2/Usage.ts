@@ -12,6 +12,9 @@ export class Usage extends Feature {
   
   /** バリエーション要素かどうか */
   isVariation: boolean;
+
+  /** 抽象要素かどうか */
+  isAbstract: boolean;
   
   /** ステレオタイプ (SysML v2 Profile適用情報) */
   stereotype?: string;
@@ -29,17 +32,20 @@ export class Usage extends Feature {
     name?: string;
     definitionId?: string;
     isVariation?: boolean;
+    isAbstract?: boolean;
     stereotype?: string;
     nestedUsages?: string[] | Usage[];
   }) {
     super({
       id: params.id || uuidv4(),
       ownerId: params.ownerId,
-      name: params.name
+      name: params.name,
+      isAbstract: params.isAbstract
     });
     
     this.definitionId = params.definitionId;
     this.isVariation = params.isVariation ?? false;
+    this.isAbstract = params.isAbstract ?? false;
     this.stereotype = params.stereotype;
     this.nestedUsages = [];
     
@@ -89,6 +95,7 @@ export class Usage extends Feature {
       __type: 'Usage',
       definition: this.definitionId,
       isVariation: this.isVariation,
+      isAbstract: this.isAbstract,
       stereotype: this.stereotype,
       nestedUsages: this.nestedUsages
     };
@@ -106,8 +113,23 @@ export class Usage extends Feature {
       name: json.name,
       definitionId: json.definition,
       isVariation: json.isVariation,
+      isAbstract: json.isAbstract,
       stereotype: json.stereotype,
       nestedUsages: json.nestedUsages || []
     });
+  }
+  
+  /**
+   * オブジェクトをプレーンなJavaScriptオブジェクトに変換する（UI表示用）
+   * @returns プレーンなJavaScriptオブジェクト
+   */
+  toObject() {
+    return {
+      id: this.id,
+      name: this.name,
+      stereotype: this.stereotype || 'usage',
+      isAbstract: this.isAbstract,
+      definitionId: this.definitionId
+    };
   }
 }

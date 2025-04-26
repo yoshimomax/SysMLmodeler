@@ -18,6 +18,7 @@ export interface SysML2_Element extends KerML_Element {
  * すべての Definition 要素の基底となる
  */
 export interface SysML2_Definition extends SysML2_Element, KerML_Classifier {
+  __type: string;       // サブクラスがオーバーライドできるよう文字列型に変更
   isAbstract?: boolean;
   isVariation?: boolean;
   ownedFeatures?: string[];
@@ -28,6 +29,7 @@ export interface SysML2_Definition extends SysML2_Element, KerML_Classifier {
  * すべての Usage 要素の基底となる
  */
 export interface SysML2_Usage extends SysML2_Element, KerML_Feature {
+  __type: string;       // サブクラスがオーバーライドできるよう文字列型に変更
   definition?: string;  // 参照する Definition の ID
   isVariation?: boolean;
   nestedUsages?: string[];
@@ -424,6 +426,18 @@ export interface SysML2_ViewpointUsage extends SysML2_Usage {
   viewpointDefinition?: string;
   concernsAddressed?: string[];
   stakeholders?: string[];
+}
+
+/**
+ * SysML2 PortUsage インターフェース
+ */
+export interface SysML2_PortUsage extends SysML2_Usage {
+  __type: 'PortUsage';
+  portDefinition?: string;
+  direction?: 'in' | 'out' | 'inout';
+  isConjugated?: boolean;
+  flowSpecifications?: string[];
+  interfaces?: string[];
 }
 
 /**

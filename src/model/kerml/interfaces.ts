@@ -23,7 +23,7 @@ export interface KerML_Element {
  * Type要素のJSONインターフェース
  */
 export interface KerML_Type extends KerML_Element {
-  __type: 'Type';
+  __type: string;        // サブクラスがオーバーライドできるよう文字列型に変更
   isAbstract?: boolean;  // 抽象型かどうか
   isConjugated?: boolean; // 共役型かどうか
   features?: KerML_Element[]; // 特性のリスト
@@ -32,34 +32,17 @@ export interface KerML_Type extends KerML_Element {
 /**
  * Classifier要素のJSONインターフェース
  */
-export interface KerML_Classifier {
-  __type: 'Classifier';
-  id: string;            // UUID
-  ownerId?: string;      // 所有者要素のUUID（ある場合）
-  name?: string;         // 名前（任意）
-  shortName?: string;    // 短い名前（任意）
-  qualifiedName?: string; // 完全修飾名（任意）
-  description?: string;  // 説明（任意）
-  isAbstract?: boolean;  // 抽象クラスかどうか
+export interface KerML_Classifier extends KerML_Type {
+  __type: string;        // サブクラスがオーバーライドできるよう文字列型に変更
   isFinal?: boolean;     // 密閉クラスかどうか
-  isConjugated?: boolean; // 共役クラスかどうか
   isIndividual?: boolean; // 個体クラスかどうか
-  features?: KerML_Element[]; // 特性のリスト
 }
 
 /**
  * Feature要素のJSONインターフェース
  */
-export interface KerML_Feature {
-  __type: 'Feature';
-  id: string;            // UUID
-  ownerId?: string;      // 所有者要素のUUID（ある場合）
-  name?: string;         // 名前（任意）
-  shortName?: string;    // 短い名前（任意）
-  qualifiedName?: string; // 完全修飾名（任意）
-  description?: string;  // 説明（任意）
-  isAbstract?: boolean;  // 抽象型かどうか
-  isConjugated?: boolean; // 共役型かどうか
+export interface KerML_Feature extends KerML_Type {
+  __type: string;        // サブクラスがオーバーライドできるよう文字列型に変更
   isUnique?: boolean;    // 一意かどうか
   isOrdered?: boolean;   // 順序付けられているかどうか
   isComposite?: boolean; // コンポジションかどうか
@@ -69,7 +52,6 @@ export interface KerML_Feature {
   isEnd?: boolean;       // 関連の終端かどうか
   direction?: 'in' | 'out' | 'inout'; // 方向
   type?: string;         // 型のUUID
-  features?: KerML_Element[]; // 特性のリスト
 }
 
 /**

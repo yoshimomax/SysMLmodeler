@@ -164,4 +164,17 @@ export class Type {
     
     return type;
   }
+  
+  /**
+   * オブジェクトをプレーンなJavaScriptオブジェクトに変換する（UI表示用）
+   * @returns プレーンなJavaScriptオブジェクト
+   */
+  toObject() {
+    return {
+      id: this.id,
+      name: this.name,
+      stereotype: 'type',
+      isAbstract: this.isAbstract
+    };
+  }
 }

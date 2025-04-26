@@ -33,25 +33,37 @@ export class BlockDefinition extends Type {
   
   /**
    * BlockDefinition コンストラクタ
-   * @param name ブロック名
-   * @param attributes 属性のリスト（オプション）
-   * @param ports ポートのリスト（オプション）
-   * @param stereotype ステレオタイプ（オプション）
-   * @param id 明示的に指定する場合のID（省略時は自動生成）
+   * @param options 初期化オプション
    */
-  constructor(
-    name: string,
-    attributes: AttributeDefinition[] = [],
-    ports: PortDefinition[] = [],
-    stereotype?: string,
-    id?: string
-  ) {
+  constructor(options: {
+    name?: string;
+    attributes?: AttributeDefinition[];
+    ports?: PortDefinition[];
+    stereotype?: string;
+    id?: string;
+    isAbstract?: boolean;
+    isSingleton?: boolean;
+    ownerId?: string;
+  }) {
     // Typeクラスのコンストラクタ呼び出し
-    super(name, [], id);
+    super({
+      id: options.id,
+      name: options.name,
+      ownerId: options.ownerId,
+      isAbstract: options.isAbstract
+    });
     
-    this.attributes = attributes;
-    this.ports = ports;
-    this.stereotype = stereotype;
+    this.attributes = options.attributes || [];
+    this.ports = options.ports || [];
+    this.stereotype = options.stereotype;
+    
+    if (options.isAbstract !== undefined) {
+      this.isAbstract = options.isAbstract;
+    }
+    
+    if (options.isSingleton !== undefined) {
+      this.isSingleton = options.isSingleton;
+    }
     
     // 属性とポートの親設定
     this.attributes.forEach(attr => {
@@ -107,13 +119,14 @@ export class BlockDefinition extends Type {
    * ブロック定義の情報をオブジェクトとして返す
    */
   override toObject() {
+    const baseObject = super.toObject();
     return {
-      ...super.toObject(),
+      ...baseObject,
       attributes: this.attributes.map(a => a.toObject()),
       ports: this.ports.map(p => p.toObject()),
       position: this.position,
       size: this.size,
-      stereotype: this.stereotype,
+      stereotype: this.stereotype || 'block', // デフォルト値を設定
       isAbstract: this.isAbstract,
       isSingleton: this.isSingleton
     };
