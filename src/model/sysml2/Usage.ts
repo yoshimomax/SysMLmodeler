@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Feature } from '../kerml/Feature';
 import { SysML2_Usage } from './interfaces';
 import { validateKerMLFeature } from '../kerml/validators';
+import { validateSysMLUsage, ValidationError } from './validator';
 
 /**
  * SysML v2のUsage基底クラス
@@ -106,21 +107,16 @@ export class Usage extends Feature {
   
   /**
    * KerML制約およびSysML v2の制約を検証する
-   * @throws Error 制約違反がある場合
+   * @throws ValidationError 制約違反がある場合
    */
   validate(): void {
     // 基底クラス（KerML Feature）の制約を検証
     validateKerMLFeature(this);
     
-    // SysML v2固有の制約を検証
-    if (this.isAbstract && !this.definitionId) {
-      console.warn(`警告: 抽象Usage(id=${this.id}, name=${this.name})にDefinitionが関連付けられていません`);
-    }
+    // SysML v2固有の使用要素共通制約を検証
+    validateSysMLUsage(this);
     
-    // 型チェック
-    if (!this.definitionId && !this.isAbstract) {
-      console.warn(`警告: Usage(id=${this.id}, name=${this.name})はDefinitionと関連付けられていません`);
-    }
+    // サブクラス固有の制約は、各サブクラスでオーバーライドして追加
   }
   
   /**

@@ -3,6 +3,7 @@ import { Classifier } from '../kerml/Classifier';
 import { Feature } from '../kerml/Feature';
 import { SysML2_Definition } from './interfaces';
 import { validateKerMLClassifier } from '../kerml/validators';
+import { validateSysMLDefinition, ValidationError } from './validator';
 
 /**
  * SysML v2のDefinition基底クラス
@@ -122,16 +123,16 @@ export class Definition extends Classifier {
   
   /**
    * KerML制約およびSysML v2の制約を検証する
-   * @throws Error 制約違反がある場合
+   * @throws ValidationError 制約違反がある場合
    */
   validate(): void {
     // 基底クラス（KerML Classifier）の制約を検証
     validateKerMLClassifier(this);
     
-    // SysML v2固有の制約を検証
-    if (this.isAbstract && this.usageReferences.length > 0) {
-      console.warn(`警告: 抽象Definition(id=${this.id}, name=${this.name})に直接Usageが関連付けられています`);
-    }
+    // SysML v2固有の定義要素共通制約を検証
+    validateSysMLDefinition(this);
+    
+    // サブクラス固有の制約は、各サブクラスでオーバーライドして追加
   }
   
   /**

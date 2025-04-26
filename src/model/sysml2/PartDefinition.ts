@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Feature } from '../kerml/Feature';
 import { Definition } from './Definition';
 import { SysML2_PartDefinition } from './interfaces';
+import { validatePartDefinition, ValidationError } from './validator';
 
 /**
  * SysML v2のPartDefinitionクラス
