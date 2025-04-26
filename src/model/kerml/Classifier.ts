@@ -1,72 +1,101 @@
 import { v4 as uuidv4 } from 'uuid';
+import { KerML_Classifier } from './interfaces';
 import { Type } from './Type';
+import { Feature } from './Feature';
 
 /**
  * KerML Classifier クラス
- * KerML メタモデルのClassifier概念を表現する
- * @see https://www.omg.org/spec/KerML/1.0/Beta1/PDF
+ * KerML メタモデルの分類子（Classifier）概念を表現する
+ * OMG仕様：ptc/2025-02-02, KerML v1.0 Beta3
  */
-export class Classifier {
-  /** 一意識別子 */
-  readonly id: string;
-  
-  /** この分類子の所有者となる型 */
-  ownerType?: Type;
-  
-  /** 分類子がメタクラスかどうか */
-  isMetaclass: boolean = false;
-  
-  /** 分類子が抽象クラスかどうか */
-  isAbstract: boolean = false;
-  
-  /** 分類子が密閉クラスかどうか（拡張できないクラス） */
+export class Classifier extends Type {
+  /** 密閉クラスかどうか（拡張できないクラス） */
   isFinal: boolean = false;
   
-  /** 分類子が個体クラスかどうか（インスタンスの識別性を持つ） */
+  /** 個体クラスかどうか（インスタンスの識別性を持つ） */
   isIndividual: boolean = false;
   
   /**
    * Classifier コンストラクタ
-   * @param ownerType この分類子の所有者となる型（オプション）
-   * @param id 明示的に指定する場合のID（省略時は自動生成）
-   * @param isAbstract 抽象クラスかどうか
-   * @param isFinal 密閉クラスかどうか
-   * @param isMetaclass メタクラスかどうか
-   * @param isIndividual 個体クラスかどうか
+   * @param options 初期化オプション
    */
-  constructor(
-    ownerType?: Type,
-    id?: string,
-    isAbstract: boolean = false,
-    isFinal: boolean = false,
-    isMetaclass: boolean = false,
-    isIndividual: boolean = false
-  ) {
-    this.id = id || uuidv4();
-    this.ownerType = ownerType;
-    this.isAbstract = isAbstract;
-    this.isFinal = isFinal;
-    this.isMetaclass = isMetaclass;
-    this.isIndividual = isIndividual;
+  constructor(options: {
+    id?: string;
+    ownerId?: string;
+    name?: string;
+    shortName?: string;
+    qualifiedName?: string;
+    description?: string;
+    isAbstract?: boolean;
+    isConjugated?: boolean;
+    isFinal?: boolean;
+    isIndividual?: boolean;
+    features?: Feature[];
+  } = {}) {
+    // 親クラスのコンストラクタを呼び出し
+    super({
+      id: options.id,
+      ownerId: options.ownerId,
+      name: options.name,
+      shortName: options.shortName,
+      qualifiedName: options.qualifiedName,
+      description: options.description,
+      isAbstract: options.isAbstract,
+      isConjugated: options.isConjugated,
+      features: options.features
+    });
     
-    // 所有者の型が指定されている場合、その型のclassifierを自身に設定
-    if (ownerType) {
-      ownerType.classifier = this;
+    if (options.isFinal !== undefined) {
+      this.isFinal = options.isFinal;
+    }
+    
+    if (options.isIndividual !== undefined) {
+      this.isIndividual = options.isIndividual;
     }
   }
   
   /**
-   * 分類子情報をオブジェクトとして返す
+   * JSON形式に変換
+   * @returns JSON表現
    */
-  toObject() {
+  toJSON(): KerML_Classifier {
     return {
-      id: this.id,
-      ownerTypeId: this.ownerType?.id,
-      ownerTypeName: this.ownerType?.name,
-      isMetaclass: this.isMetaclass,
-      isAbstract: this.isAbstract,
+      ...super.toJSON(),
+      __type: 'Classifier',
       isFinal: this.isFinal,
       isIndividual: this.isIndividual
-    };
+    } as KerML_Classifier;
+  }
+  
+  /**
+   * JSON形式から分類子を作成
+   * @param json JSON表現
+   * @returns 分類子インスタンス
+   */
+  static fromJSON(json: KerML_Classifier, featureInstances: Feature[] = []): Classifier {
+    // 基本的なClassifier情報で初期化
+    const classifier = new Classifier({
+      id: json.id,
+      ownerId: json.ownerId,
+      name: json.name,
+      shortName: json.shortName,
+      qualifiedName: json.qualifiedName,
+      description: json.description,
+      isAbstract: json.isAbstract,
+      isConjugated: json.isConjugated,
+      isFinal: json.isFinal,
+      isIndividual: json.isIndividual
+    });
+    
+    // Feature情報は既に生成されたインスタンスを使用
+    if (featureInstances.length > 0) {
+      featureInstances.forEach(feature => {
+        if (feature.ownerId === classifier.id) {
+          classifier.addFeature(feature);
+        }
+      });
+    }
+    
+    return classifier;
   }
 }

@@ -1,13 +1,23 @@
 import { v4 as uuidv4 } from 'uuid';
+import { KerML_MultiplicityRange } from './interfaces';
 
 /**
  * KerML MultiplicityRange クラス
  * KerML メタモデルの多重度範囲概念を表現する
- * @see https://www.omg.org/spec/KerML/1.0/Beta1/PDF
+ * OMG仕様：ptc/2025-02-02, KerML v1.0 Beta3
  */
 export class MultiplicityRange {
   /** 一意識別子 */
   readonly id: string;
+  
+  /** 所有者要素ID */
+  ownerId?: string;
+  
+  /** 要素名 */
+  name?: string;
+  
+  /** 説明 */
+  description?: string;
   
   /** 下限値 */
   lowerBound: number;
@@ -15,25 +25,35 @@ export class MultiplicityRange {
   /** 上限値（-1 は無限大を表す） */
   upperBound: number;
   
+  /** 境界の型UUID */
+  boundingTypeId?: string;
+  
   /** 多重度の表示文字列（内部表現ではなく表示用） */
-  multiplicityString?: string;
+  private _multiplicityString?: string;
   
   /**
    * MultiplicityRange コンストラクタ
-   * @param lowerBound 下限値（デフォルト: 0）
-   * @param upperBound 上限値（デフォルト: 1、-1 は無限大）
-   * @param id 明示的に指定する場合のID（省略時は自動生成）
+   * @param options 初期化オプション
    */
-  constructor(
-    lowerBound: number = 0,
-    upperBound: number = 1,
-    id?: string
-  ) {
-    this.id = id || uuidv4();
-    this.lowerBound = lowerBound;
-    this.upperBound = upperBound;
+  constructor(options: {
+    id?: string;
+    ownerId?: string;
+    name?: string;
+    description?: string;
+    lowerBound?: number;
+    upperBound?: number;
+    boundingTypeId?: string;
+  } = {}) {
+    this.id = options.id || uuidv4();
+    this.ownerId = options.ownerId;
+    this.name = options.name;
+    this.description = options.description;
     
-    // 表示文字列を設定
+    this.lowerBound = options.lowerBound !== undefined ? options.lowerBound : 0;
+    this.upperBound = options.upperBound !== undefined ? options.upperBound : 1;
+    this.boundingTypeId = options.boundingTypeId;
+    
+    // 表示文字列を更新
     this.updateMultiplicityString();
   }
   
@@ -54,14 +74,21 @@ export class MultiplicityRange {
   private updateMultiplicityString(): void {
     if (this.lowerBound === this.upperBound) {
       // 下限と上限が同じ場合は単一の値を表示
-      this.multiplicityString = `${this.lowerBound}`;
+      this._multiplicityString = `${this.lowerBound}`;
     } else if (this.upperBound === -1) {
       // 上限が無限大の場合
-      this.multiplicityString = `${this.lowerBound}..*`;
+      this._multiplicityString = `${this.lowerBound}..*`;
     } else {
       // 範囲がある場合
-      this.multiplicityString = `${this.lowerBound}..${this.upperBound}`;
+      this._multiplicityString = `${this.lowerBound}..${this.upperBound}`;
     }
+  }
+  
+  /**
+   * 多重度の表示文字列を取得
+   */
+  get multiplicityString(): string {
+    return this._multiplicityString || '';
   }
   
   /**
@@ -80,15 +107,55 @@ export class MultiplicityRange {
   }
   
   /**
-   * 多重度範囲情報をオブジェクトとして返す
+   * 多重度が有効かどうかチェック
+   * @returns 有効な多重度の場合true、そうでない場合false
    */
-  toObject() {
+  isValid(): boolean {
+    // 下限は0以上の整数
+    if (this.lowerBound < 0) {
+      return false;
+    }
+    
+    // 上限は下限以上、または-1（無限大）
+    if (this.upperBound !== -1 && this.upperBound < this.lowerBound) {
+      return false;
+    }
+    
+    return true;
+  }
+  
+  /**
+   * JSON形式に変換
+   * @returns JSON表現
+   */
+  toJSON(): KerML_MultiplicityRange {
     return {
+      __type: 'MultiplicityRange',
       id: this.id,
+      ownerId: this.ownerId,
+      name: this.name,
+      description: this.description,
       lowerBound: this.lowerBound,
       upperBound: this.upperBound,
-      multiplicityString: this.multiplicityString
+      boundingType: this.boundingTypeId
     };
+  }
+  
+  /**
+   * JSON形式から多重度範囲を作成
+   * @param json JSON表現
+   * @returns 多重度範囲インスタンス
+   */
+  static fromJSON(json: KerML_MultiplicityRange): MultiplicityRange {
+    return new MultiplicityRange({
+      id: json.id,
+      ownerId: json.ownerId,
+      name: json.name,
+      description: json.description,
+      lowerBound: json.lowerBound,
+      upperBound: json.upperBound,
+      boundingTypeId: json.boundingType
+    });
   }
   
   /**
@@ -104,7 +171,10 @@ export class MultiplicityRange {
     
     // '*' は '0..*' の省略形
     if (multiplicity === '*') {
-      return new MultiplicityRange(0, -1);
+      return new MultiplicityRange({
+        lowerBound: 0,
+        upperBound: -1
+      });
     }
     
     // '1..*' のような形式をパース
@@ -119,11 +189,17 @@ export class MultiplicityRange {
         upperBound = parseInt(upperStr, 10);
       }
       
-      return new MultiplicityRange(lowerBound, upperBound);
+      return new MultiplicityRange({
+        lowerBound,
+        upperBound
+      });
     }
     
     // 単一の数値は下限と上限が同じ
     const bound = parseInt(multiplicity, 10);
-    return new MultiplicityRange(bound, bound);
+    return new MultiplicityRange({
+      lowerBound: bound,
+      upperBound: bound
+    });
   }
 }
