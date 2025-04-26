@@ -3,24 +3,36 @@ import { Element, Relationship } from '@/types/sysml';
 import { useAppStore } from '@/lib/store';
 
 export default function PropertyPanel() {
-  const { 
-    selectedElement, 
-    selectedRelationship,
-    updateElement,
-    updateRelationship,
-    setIsDirty,
-    currentDiagram
-  } = useAppStore();
+  // Zustandのストアから最新の状態を常に取得するためのセレクター関数を使用
+  const selectedElement = useAppStore(state => state.selectedElement);
+  const selectedRelationship = useAppStore(state => state.selectedRelationship);
+  const updateElement = useAppStore(state => state.updateElement);
+  const updateRelationship = useAppStore(state => state.updateRelationship);
+  const setIsDirty = useAppStore(state => state.setIsDirty);
+  const currentDiagram = useAppStore(state => state.currentDiagram);
   
   const [activeTab, setActiveTab] = useState<string>('properties');
   const [localElementData, setLocalElementData] = useState<Element | null>(null);
   const [selectionStatus, setSelectionStatus] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
+  // デバッグ用：コンポーネントがレンダリングされる時の状態を検証（初回とその後の更新）
+  useEffect(() => {
+    console.log('PropertyPanel rendering with state:', {
+      selectedElementId: selectedElement?.id,
+      selectedElementName: selectedElement?.name,
+      selectedRelationshipId: selectedRelationship?.id,
+      selectedRelationshipType: selectedRelationship?.type
+    });
+  });
+  
   // 選択要素が変更されたときにローカルデータを更新
   useEffect(() => {
+    console.log('PropertyPanel: selectedElement Effect triggered:', 
+      selectedElement ? `ID: ${selectedElement.id}, Name: ${selectedElement.name}` : 'null');
+    
     if (selectedElement) {
-      console.log('PropertyPanel: Selected element updated:', selectedElement.id, selectedElement.name);
+      console.log('PropertyPanel: Updating for selected element:', selectedElement.id, selectedElement.name);
       setLocalElementData(selectedElement);
       // 状態をクリア
       setErrorMessage(null);
@@ -39,8 +51,11 @@ export default function PropertyPanel() {
   
   // リレーションシップ選択の監視
   useEffect(() => {
+    console.log('PropertyPanel: selectedRelationship Effect triggered:',
+      selectedRelationship ? `ID: ${selectedRelationship.id}, Type: ${selectedRelationship.type}` : 'null');
+    
     if (selectedRelationship) {
-      console.log('PropertyPanel: Selected relationship updated:', selectedRelationship.id, selectedRelationship.type);
+      console.log('PropertyPanel: Updating for selected relationship:', selectedRelationship.id, selectedRelationship.type);
       // 状態をクリア
       setErrorMessage(null);
       setSelectionStatus(`リレーションシップ「${selectedRelationship.type}」を選択中（ID: ${selectedRelationship.id}）`);
@@ -55,6 +70,11 @@ export default function PropertyPanel() {
   
   // 選択解除されたときにローカルデータをクリア
   useEffect(() => {
+    console.log('PropertyPanel: Combined selection effect triggered:', {
+      selectedElement: !!selectedElement,
+      selectedRelationship: !!selectedRelationship
+    });
+    
     if (!selectedElement && !selectedRelationship) {
       setLocalElementData(null);
       setSelectionStatus('何も選択されていません');

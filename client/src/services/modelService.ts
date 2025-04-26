@@ -94,29 +94,59 @@ export async function loadModelFromFile(
   modelId?: number
 ): Promise<SysMLModel | null> {
   try {
+    console.log('モデル読み込み開始:', filename);
     // APIリクエストURLを構築
     let url = `/api/models/load`;
     if (modelId) {
       url += `?id=${modelId}`;
+      console.log(`モデルIDで読み込み: ${modelId}`);
     } else if (filename) {
       url += `?filename=${encodeURIComponent(filename)}`;
+      console.log(`ファイル名で読み込み: ${filename}`);
     }
     
     // サーバーからモデルデータを要求
+    console.log('APIリクエスト開始:', url);
     const response = await apiRequest('GET', url);
+    console.log('サーバーからのレスポンス:', response.status);
+    
+    // 404の場合は初期モデルを作成する処理へ
+    if (response.status === 404) {
+      console.log('ファイルまたはモデルが見つかりません。新しく作成します。');
+      const errorData = await response.json();
+
+      // サーバーから初期モデルが返された場合はそれを使用
+      if (errorData.initialModel) {
+        console.log('サーバーから初期モデルを受信:', errorData.initialModel);
+        
+        useAppStore.getState().setStatusMessage({
+          text: '新しいモデルを作成します',
+          type: 'info',
+        });
+        
+        return errorData.initialModel;
+      }
+      
+      // 通常のエラー処理へ
+      throw new Error(`ファイルが見つかりません: ${filename}`);
+    }
     
     if (!response.ok) {
-      throw new Error(`モデルの読み込みに失敗しました: ${response.statusText}`);
+      const errorData = await response.json();
+      throw new Error(`サーバーエラー: ${errorData.error || response.statusText}. ${errorData.details || ''}`);
     }
     
     const data = await response.json();
+    console.log('読み込み成功、サーバーレスポンス:', data);
     
     if (!data.content) {
       throw new Error('無効なモデルフォーマット');
     }
     
     // JSONからモデルデータをパース
+    console.log('モデルデータを解析中...');
     const model: SysMLModel = JSON.parse(data.content);
+    console.log('モデル解析完了');
     
     // データベースのモデルIDをモデルに保持（後で更新に使用）
     if (data.model?.id) {
@@ -131,11 +161,29 @@ export async function loadModelFromFile(
       type: 'success',
     });
     
+    // ダイアグラムが空の場合の処理
+    if (!model.diagrams || model.diagrams.length === 0) {
+      console.log('ダイアグラムが存在しません。初期ダイアグラムを作成します。');
+      model.diagrams = [{
+        id: crypto.randomUUID(),
+        name: 'Main Diagram',
+        type: 'block',
+        elements: [],
+        relationships: []
+      }];
+    }
+    
+    // モデルが空の場合はダミーデータを作成しない（null を返して新規作成処理へ）
+    if (!model.elements || model.elements.length === 0) {
+      console.log('モデルが空です。');
+    }
+    
     return model;
   } catch (error) {
     // エラーハンドリング
     if (error instanceof Error && error.message.includes('not found')) {
       // 初回実行時など、ファイルが見つからない場合は必ずしもエラーではない
+      console.log('ファイルが見つからないため、新規モデルを作成します');
       useAppStore.getState().setStatusMessage({
         text: '新しいモデルを作成します',
         type: 'info',
@@ -143,12 +191,25 @@ export async function loadModelFromFile(
       return null;
     }
     
+    // エラーの詳細を取得
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : (typeof error === 'object' && error !== null) 
+        ? JSON.stringify(error)
+        : '不明なエラー';
+    
     // エラーメッセージの表示
     useAppStore.getState().setStatusMessage({
-      text: `モデルの読み込みに失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`,
+      text: `モデルの読み込みに失敗しました: ${errorMessage}`,
       type: 'error',
     });
+    
+    // 詳細なログ
     console.error('Error loading model:', error);
+    if (error instanceof Error && error.stack) {
+      console.error('Error stack:', error.stack);
+    }
+    
     return null;
   }
 }
