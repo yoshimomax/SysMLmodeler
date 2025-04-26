@@ -6,33 +6,40 @@ import { PortDefinition } from './PortDefinition';
 import { validateKerMLClassifier } from '../kerml/validators';
 
 /**
- * SysML v2 BlockDefinition クラス
- * SysML v2 言語仕様のブロック定義を表現する
+ * SysML v2 PartDefinition クラス （旧名称: BlockDefinition）
+ * SysML v2 言語仕様のパート定義を表現する
  * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.6, §8.2に準拠
  * 
- * BlockDefinitionは、システムの構造的な型を定義するクラスです。
- * SysML v2のBlockDefinitionは、Definitionを基底とし、属性、ポート、接続、振る舞いを含めることができます。
+ * 注意: SysML v2では「ブロック」の概念は「パート」に置き換えられました。
+ * このクラスは後方互換性のために一時的にBlockDefinitionという名前を保持しています。
+ * 
+ * PartDefinitionは、システムの構造的な型を定義するクラスです。
+ * SysML v2のPartDefinitionは、Definitionを基底とし、属性、ポート、接続、振る舞いを含めることができます。
  */
 export class BlockDefinition extends Definition {
-  /** このブロックが持つ属性定義のリスト */
+  /** このパートが持つ属性定義のリスト */
   attributes: AttributeDefinition[] = [];
   
-  /** このブロックが持つポート定義のリスト */
+  /** このパートが持つポート定義のリスト */
   ports: PortDefinition[] = [];
   
-  /** ブロックの配置位置（レイアウト情報） */
+  /** パートの配置位置（レイアウト情報） */
   position?: { x: number; y: number };
   
-  /** ブロックのサイズ（レイアウト情報） */
+  /** パートのサイズ（レイアウト情報） */
   size?: { width: number; height: number };
   
-  /** ブロックのステレオタイプ */
+  /** 
+   * 型の分類
+   * 注意: SysML v2ではステレオタイプの概念は廃止されました
+   * @deprecated このプロパティはSysML v1との互換性のために残されています
+   */
   stereotype?: string;
   
-  /** ブロックが抽象かどうか */
+  /** パートが抽象かどうか */
   isAbstract: boolean = false;
   
-  /** ブロックがシングルトンかどうか */
+  /** パートがシングルトンかどうか */
   isSingleton: boolean = false;
   
   /**
@@ -58,13 +65,14 @@ export class BlockDefinition extends Definition {
       ownerId: options.ownerId,
       isAbstract: options.isAbstract,
       isVariation: options.isVariation,
-      stereotype: options.stereotype || 'block',
+      // SysML v2ではステレオタイプの概念は廃止されたが、後方互換性のために残している
       usageReferences: options.usageReferences
     });
     
     this.attributes = options.attributes || [];
     this.ports = options.ports || [];
-    this.stereotype = options.stereotype || 'block';
+    // 後方互換性のためにステレオタイプを設定（SysML v2では非推奨）
+    this.stereotype = options.stereotype;
     
     if (options.isAbstract !== undefined) {
       this.isAbstract = options.isAbstract;
@@ -181,7 +189,7 @@ export class BlockDefinition extends Definition {
   }
   
   /**
-   * ブロック定義の情報をオブジェクトとして返す
+   * パート定義の情報をオブジェクトとして返す
    */
   override toObject() {
     const baseObject = super.toObject();
@@ -191,7 +199,8 @@ export class BlockDefinition extends Definition {
       ports: this.ports.map(p => p.toObject()),
       position: this.position,
       size: this.size,
-      stereotype: this.stereotype || 'block', // デフォルト値を設定
+      // 注意: stereotype はSysML v2では非推奨
+      stereotype: this.stereotype,
       isAbstract: this.isAbstract,
       isSingleton: this.isSingleton
     };

@@ -8,9 +8,10 @@ import { KerML_Classifier, KerML_Feature, KerML_Element } from '../kerml/interfa
 
 /**
  * SysML2 Element 基本インターフェース
+ * SysML v2ではステレオタイプ概念は廃止され、直接型システムで表現される
  */
 export interface SysML2_Element extends KerML_Element {
-  stereotype?: string;
+  // v2では不要になったstereotype属性を削除
 }
 
 /**
