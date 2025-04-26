@@ -1,13 +1,17 @@
 import { v4 as uuidv4 } from 'uuid';
+import { Feature } from '../kerml/Feature';
 import { Definition } from './Definition';
 import { SysML2_PortDefinition } from './interfaces';
 
 /**
  * SysML v2 PortDefinition クラス
  * SysML v2 言語仕様のポート定義を表現する
- * @see https://www.omg.org/spec/SysML/2.0/Beta3
+ * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §8.8に準拠
+ * 
+ * PortDefinitionは、システム間のインタフェース接続点を定義するクラスです。
+ * SysML v2では、PortDefinitionはFeatureを継承するDefinitionです。
  */
-export class PortDefinition extends Definition {
+export class PortDefinition extends Feature {
   /** ポートの型名（インターフェース型など） */
   typeName?: string;
   

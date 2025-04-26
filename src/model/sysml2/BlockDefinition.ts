@@ -80,14 +80,14 @@ export class BlockDefinition extends Definition {
         (attr as any).ownerBlock = this;
       }
       attr.ownerId = this.id;
-      // 特性として登録
-      this.addFeature(attr);
+      // 属性はすでにFeatureのサブクラスなので直接特性として登録
+      this.ownedFeatures.push(attr.id);
     });
     
     this.ports.forEach(port => {
       port.ownerId = this.id;
-      // 特性として登録
-      this.addFeature(port);
+      // ポートが持つFeature型の特性をこのブロックの特性として登録
+      this.ownedFeatures.push(port.id);
     });
     
     // KerML制約の検証
@@ -108,6 +108,9 @@ export class BlockDefinition extends Definition {
     }
     attribute.ownerId = this.id;
     this.attributes.push(attribute);
+    
+    // Definition基底クラスの特性としても追加
+    this.ownedFeatures.push(attribute.id);
   }
   
   /**
@@ -117,6 +120,9 @@ export class BlockDefinition extends Definition {
   addPort(port: PortDefinition): void {
     port.ownerId = this.id;
     this.ports.push(port);
+    
+    // Definition基底クラスの特性としても追加
+    this.ownedFeatures.push(port.id);
   }
   
   /**
@@ -127,6 +133,10 @@ export class BlockDefinition extends Definition {
   removeAttribute(attributeId: string): boolean {
     const initialLength = this.attributes.length;
     this.attributes = this.attributes.filter(a => a.id !== attributeId);
+    
+    // Definition基底クラスからも特性を削除
+    this.removeFeature(attributeId);
+    
     return this.attributes.length !== initialLength;
   }
   
@@ -138,7 +148,36 @@ export class BlockDefinition extends Definition {
   removePort(portId: string): boolean {
     const initialLength = this.ports.length;
     this.ports = this.ports.filter(p => p.id !== portId);
+    
+    // Definition基底クラスからも特性を削除
+    this.removeFeature(portId);
+    
     return this.ports.length !== initialLength;
+  }
+  
+  /**
+   * KerML制約およびSysML v2の制約を検証する
+   * SysML v2 Beta3 Part1 (ptc/2025-02-11) §8.2に準拠
+   * @throws Error 制約違反がある場合
+   */
+  validate(): void {
+    // 親クラス（Definition）の制約を検証
+    super.validate();
+    
+    // SysML v2固有の制約を検証
+    // ポートの所有関係の検証
+    this.ports.forEach(port => {
+      if (port.ownerId !== this.id) {
+        console.warn(`警告: ポート(id=${port.id}, name=${port.name})の所有者IDが不正です。期待値: ${this.id}, 実際: ${port.ownerId}`);
+      }
+    });
+    
+    // 属性の所有関係の検証
+    this.attributes.forEach(attr => {
+      if (attr.ownerId !== this.id) {
+        console.warn(`警告: 属性(id=${attr.id}, name=${attr.name})の所有者IDが不正です。期待値: ${this.id}, 実際: ${attr.ownerId}`);
+      }
+    });
   }
   
   /**
