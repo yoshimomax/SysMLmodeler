@@ -56,6 +56,7 @@ export class PartUsage extends Usage {
     definitionId?: string;
     partDefinitionId?: string;
     isVariation?: boolean;
+    isAbstract?: boolean;
     stereotype?: string;
     nestedUsages?: string[] | Usage[];
     isHuman?: boolean;
@@ -76,6 +77,7 @@ export class PartUsage extends Usage {
       name: params.name,
       definitionId: params.definitionId || params.partDefinitionId,
       isVariation: params.isVariation,
+      isAbstract: params.isAbstract,
       stereotype: params.stereotype,
       nestedUsages: params.nestedUsages
     });
@@ -182,6 +184,7 @@ export class PartUsage extends Usage {
       definitionId: json.definition,
       partDefinitionId: json.partDefinition,
       isVariation: json.isVariation,
+      isAbstract: json.isAbstract,
       stereotype: json.stereotype,
       nestedUsages: json.nestedUsages,
       isHuman: json.isHuman,

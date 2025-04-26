@@ -19,7 +19,7 @@ describe('SysML2 モデル間関係', () => {
       const partUsage = new PartUsage({
         id: 'main-engine',
         name: 'MainEngine',
-        isAbstract: false,
+        isAbstract: false, // isAbstractプロパティは追加済み
         stereotype: 'part',
         partDefinitionId: partDef.id
       });
