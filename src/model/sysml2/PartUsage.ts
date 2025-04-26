@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Usage } from './Usage';
 import { SysML2_PartUsage } from './interfaces';
+import { validatePartUsage, ValidationError } from './validator';
 
 /**
  * SysML v2のPartUsageクラス
@@ -133,6 +134,19 @@ export class PartUsage extends Usage {
   }
   
   /**
+   * KerML制約およびSysML v2の制約を検証する
+   * PartUsage固有の制約を追加でチェック
+   * @throws ValidationError 制約違反がある場合
+   */
+  validate(): void {
+    // 基底クラス（Usage）の検証
+    super.validate();
+    
+    // PartUsage固有の制約を検証
+    validatePartUsage(this);
+  }
+  
+  /**
    * JSONオブジェクトに変換する
    * @returns SysML2_PartUsage形式のJSONオブジェクト
    */
@@ -190,10 +204,8 @@ export class PartUsage extends Usage {
    */
   toObject() {
     return {
-      id: this.id,
-      name: this.name,
+      ...super.toObject(),
       stereotype: this.stereotype || 'part',
-      definitionId: this.partDefinitionId,
       isHuman: this.isHuman,
       ports: this.ports,
       nestedParts: this.nestedParts
