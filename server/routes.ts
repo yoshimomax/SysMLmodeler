@@ -166,9 +166,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // ファイルIDが指定されていない場合、新しいファイルを作成
       if (!fileId) {
-        // デフォルトプロジェクトIDは1とする（実際には認証とユーザーの選択に基づくべき）
-        const projectId = 1;
+        // デフォルトプロジェクトを作成または取得する
+        let projectId;
         
+        // プロジェクト一覧を取得
+        const projects = await storage.getAllProjects();
+        
+        if (projects.length === 0) {
+          // プロジェクトが一つもない場合は新規作成
+          console.log('デフォルトプロジェクトを作成します');
+          const defaultProject = await storage.createProject({
+            name: 'Default SysML Project',
+            description: 'Auto-generated project for SysML models',
+            ownerId: null,
+            createdAt: now,
+            updatedAt: now
+          });
+          projectId = defaultProject.id;
+          console.log('デフォルトプロジェクト作成完了:', projectId);
+        } else {
+          // 既存の最初のプロジェクトを使用
+          projectId = projects[0].id;
+          console.log('既存プロジェクトを使用:', projectId);
+        }
+        
+        console.log(`ファイル作成: ${filename}、プロジェクトID: ${projectId}`);
         file = await storage.createFile({
           path: `/models/${filename}`,
           name: filename,
@@ -179,6 +201,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           createdAt: now,
           updatedAt: now
         });
+        console.log('ファイル作成完了:', file.id);
       } else {
         // 既存のファイルを取得
         file = await storage.getFile(parseInt(fileId));
@@ -227,8 +250,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // モデルの読み込み（データベース使用）
   app.get('/api/models/load', async (req, res) => {
     try {
-      const filename = req.query.filename as string;
+      console.log('モデル読み込み開始');
+      const filename = req.query.filename as string || 'project.sysml';
       const modelId = req.query.id as string;
+      
+      console.log(`ロードパラメータ: filename=${filename}, modelId=${modelId}`);
       
       if (!filename && !modelId) {
         return res.status(400).json({ error: 'ファイル名またはモデルIDが必要です' });
@@ -238,32 +264,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (modelId) {
         // IDでモデルを検索
+        console.log(`IDでモデルを検索: ${modelId}`);
         model = await storage.getModel(parseInt(modelId));
       } else {
         // ファイル名に基づいて検索
+        console.log(`ファイル名に基づいて検索: ${filename}`);
+        
         // ファイルを見つける
         const files = await storage.getAllFiles();
+        console.log(`検索中のファイル数: ${files.length}`);
+        
+        files.forEach((f, index) => {
+          console.log(`ファイル ${index + 1}: id=${f.id}, name=${f.name}, path=${f.path}`);
+        });
+        
         const file = files.find((f: { name: string }) => f.name === filename);
         
         if (!file) {
-          return res.status(404).json({ error: 'ファイルが見つかりません', notFound: true });
+          console.log('ファイルが見つかりません:', filename);
+          
+          // ファイルが見つからない場合、モデルの初期状態を返す（オプション）
+          // これにより、初回アクセス時でもエラーではなく、空のモデルを返せる
+          return res.status(404).json({ 
+            error: 'ファイルが見つかりません',
+            notFound: true,
+            // 初期状態のダイアグラムを返す（任意）
+            initialModel: {
+              id: 'init',
+              name: 'New SysML Model',
+              diagrams: [],
+              elements: [],
+              relationships: []
+            }
+          });
         }
+        
+        console.log(`ファイルが見つかりました: id=${file.id}, name=${file.name}`);
         
         // ファイルに関連するモデルを取得
         const models = await storage.getModelsByFile(file.id);
+        console.log(`ファイルに関連するモデル数: ${models.length}`);
+        
         if (models.length === 0) {
-          return res.status(404).json({ error: 'モデルが見つかりません', notFound: true });
+          console.log('モデルが見つかりません');
+          return res.status(404).json({ 
+            error: 'モデルが見つかりません', 
+            notFound: true,
+            // 初期状態のダイアグラムを返す（任意）
+            initialModel: {
+              id: 'init',
+              name: 'New SysML Model',
+              diagrams: [],
+              elements: [],
+              relationships: []
+            }
+          });
         }
         
         model = models[0];
       }
       
       if (!model) {
+        console.log('モデルが見つかりません');
         return res.status(404).json({ error: 'モデルが見つかりません', notFound: true });
       }
       
+      console.log(`モデルを読み込みました: id=${model.id}, name=${model.name}`);
+      
       // モデルデータをJSON文字列に変換
       const content = JSON.stringify(model.data);
+      
+      console.log('モデル読み込み完了');
       
       res.json({ 
         success: true, 
@@ -275,7 +346,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('モデル読み込みエラー:', error);
       res.status(500).json({ 
         error: '読み込みに失敗しました', 
-        details: error instanceof Error ? error.message : '不明なエラー'
+        details: error instanceof Error ? error.message : '不明なエラー',
+        // スタックトレースを追加（開発環境でのみ使用すべき）
+        stack: error instanceof Error ? error.stack : undefined
       });
     }
   });

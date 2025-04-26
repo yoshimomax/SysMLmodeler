@@ -87,7 +87,7 @@ export default function DiagramEditor() {
       paper.on('element:pointerclick', (elementView: any) => {
         const cellModel = elementView.model;
         const id = cellModel.id.toString();
-        console.log('DEBUG - element:pointerclick - selected:', id);
+        console.log('DEBUG - element:pointerclick - selected ID:', id);
         
         // 直接ストアから要素を検索（currentDiagramに依存しない）
         const store = useAppStore.getState();
@@ -97,11 +97,13 @@ export default function DiagramEditor() {
           const element = store.currentDiagram.elements.find(e => e.id === id);
           if (element) {
             console.log('Element selected:', element.id, element.name);
-            setSelectedElement(element);
-            setSelectedRelationship(null);
+            // 明示的にストアを更新
+            useAppStore.getState().setSelectedElement(element);
+            useAppStore.getState().setSelectedRelationship(null);
             
             // ストアの状態を確認
             console.log('Store updated - selectedElement:', useAppStore.getState().selectedElement?.id);
+            console.log('Store updated - selectedElement name:', useAppStore.getState().selectedElement?.name);
           } else {
             // 新しい要素として追加
             const newElement: Element = {
@@ -114,10 +116,11 @@ export default function DiagramEditor() {
             };
             
             // 要素を追加
-            addElement(newElement);
-            setSelectedElement(newElement);
-            setSelectedRelationship(null);
-            console.log('New element created and selected:', newElement.id);
+            useAppStore.getState().addElement(newElement);
+            useAppStore.getState().setSelectedElement(newElement);
+            useAppStore.getState().setSelectedRelationship(null);
+            console.log('New element created and selected:', newElement.id, newElement.name);
+            console.log('Store check after new element:', useAppStore.getState().selectedElement?.id);
           }
         } else {
           // エラー表示
@@ -130,7 +133,7 @@ export default function DiagramEditor() {
       paper.on('link:pointerclick', (linkView: any) => {
         const cellModel = linkView.model;
         const id = cellModel.id.toString();
-        console.log('DEBUG - link:pointerclick - selected:', id);
+        console.log('DEBUG - link:pointerclick - selected ID:', id);
         
         // 直接ストアから関連を検索（currentDiagramに依存しない）
         const store = useAppStore.getState();
@@ -139,11 +142,13 @@ export default function DiagramEditor() {
           const relationship = store.currentDiagram.relationships.find(r => r.id === id);
           if (relationship) {
             console.log('Relationship selected:', relationship.id, relationship.type);
-            setSelectedRelationship(relationship);
-            setSelectedElement(null);
+            // 明示的にストアを更新
+            useAppStore.getState().setSelectedRelationship(relationship);
+            useAppStore.getState().setSelectedElement(null);
             
             // ストアの状態を確認
             console.log('Store updated - selectedRelationship:', useAppStore.getState().selectedRelationship?.id);
+            console.log('Store updated - selectedRelationship type:', useAppStore.getState().selectedRelationship?.type);
           } else {
             // 新しい関連として追加
             const sourceId = cellModel.source().id;
@@ -158,10 +163,11 @@ export default function DiagramEditor() {
             };
             
             // 関連を追加
-            addRelationship(newRelationship);
-            setSelectedRelationship(newRelationship);
-            setSelectedElement(null);
-            console.log('New relationship created and selected:', newRelationship.id);
+            useAppStore.getState().addRelationship(newRelationship);
+            useAppStore.getState().setSelectedRelationship(newRelationship);
+            useAppStore.getState().setSelectedElement(null);
+            console.log('New relationship created and selected:', newRelationship.id, newRelationship.type);
+            console.log('Store check after new relationship:', useAppStore.getState().selectedRelationship?.id);
           }
         } else {
           // エラー表示
@@ -175,7 +181,7 @@ export default function DiagramEditor() {
         const cellModel = cellView.model;
         const id = cellModel.id.toString();
         
-        console.log('DEBUG - cell:pointerclick - selected:', id);
+        console.log('DEBUG - cell:pointerclick - selected ID:', id);
         
         // セルの種類によって処理を分岐
         if (cellModel.isElement()) {
@@ -185,8 +191,12 @@ export default function DiagramEditor() {
             const element = store.currentDiagram.elements.find(e => e.id === id);
             if (element) {
               console.log('Cell clicked (element):', element.id, element.name);
-              setSelectedElement(element);
-              setSelectedRelationship(null);
+              // 明示的にストアを更新
+              useAppStore.getState().setSelectedElement(element);
+              useAppStore.getState().setSelectedRelationship(null);
+              
+              // ストアの状態を確認
+              console.log('Cell:pointerclick Store updated - selectedElement:', useAppStore.getState().selectedElement?.id);
             } else {
               // 新しい要素として扱う
               const newElement: Element = {
@@ -198,9 +208,11 @@ export default function DiagramEditor() {
                 size: cellModel.size()
               };
               
-              addElement(newElement);
-              setSelectedElement(newElement);
-              setSelectedRelationship(null);
+              // 明示的にストアを更新
+              useAppStore.getState().addElement(newElement);
+              useAppStore.getState().setSelectedElement(newElement);
+              useAppStore.getState().setSelectedRelationship(null);
+              console.log('Cell:pointerclick New element created and selected:', newElement.id);
             }
           }
         } else if (cellModel.isLink()) {
@@ -210,8 +222,12 @@ export default function DiagramEditor() {
             const relationship = store.currentDiagram.relationships.find(r => r.id === id);
             if (relationship) {
               console.log('Cell clicked (relationship):', relationship.id, relationship.type);
-              setSelectedRelationship(relationship);
-              setSelectedElement(null);
+              // 明示的にストアを更新
+              useAppStore.getState().setSelectedRelationship(relationship);
+              useAppStore.getState().setSelectedElement(null);
+              
+              // ストアの状態を確認
+              console.log('Cell:pointerclick Store updated - selectedRelationship:', useAppStore.getState().selectedRelationship?.id);
             } else {
               // 新しい関連として扱う
               const sourceId = cellModel.source().id;
@@ -225,9 +241,48 @@ export default function DiagramEditor() {
                 name: 'New Relationship'
               };
               
-              addRelationship(newRelationship);
-              setSelectedRelationship(newRelationship);
-              setSelectedElement(null);
+              // 明示的にストアを更新
+              useAppStore.getState().addRelationship(newRelationship);
+              useAppStore.getState().setSelectedRelationship(newRelationship);
+              useAppStore.getState().setSelectedElement(null);
+              console.log('Cell:pointerclick New relationship created and selected:', newRelationship.id);
+            }
+          }
+        }
+      });
+      
+      // ダブルクリックイベントも追加（もう一つの確実な選択方法として）
+      paper.on('cell:pointerdblclick', (cellView: any) => {
+        const cellModel = cellView.model;
+        const id = cellModel.id.toString();
+        
+        console.log('DEBUG - cell:pointerdblclick - selected ID:', id);
+        
+        // double-clickでも同様の選択処理を行う（冗長だが確実性のため）
+        if (cellModel.isElement()) {
+          const store = useAppStore.getState();
+          if (store.currentDiagram?.elements) {
+            const element = store.currentDiagram.elements.find(e => e.id === id);
+            if (element) {
+              console.log('Cell double-clicked (element):', element.id, element.name);
+              // 明示的にストアを更新
+              useAppStore.getState().setSelectedElement(element);
+              useAppStore.getState().setSelectedRelationship(null);
+              // プロパティタブに表示されることを検証するログ
+              console.log('Double-click store check - selectedElement:', useAppStore.getState().selectedElement?.id);
+            }
+          }
+        } else if (cellModel.isLink()) {
+          const store = useAppStore.getState();
+          if (store.currentDiagram?.relationships) {
+            const relationship = store.currentDiagram.relationships.find(r => r.id === id);
+            if (relationship) {
+              console.log('Cell double-clicked (relationship):', relationship.id, relationship.type);
+              // 明示的にストアを更新
+              useAppStore.getState().setSelectedRelationship(relationship);
+              useAppStore.getState().setSelectedElement(null);
+              // プロパティタブに表示されることを検証するログ
+              console.log('Double-click store check - selectedRelationship:', useAppStore.getState().selectedRelationship?.id);
             }
           }
         }

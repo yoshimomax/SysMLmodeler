@@ -17,10 +17,13 @@ export async function saveModelToFile(
   fileId?: number
 ): Promise<boolean> {
   try {
+    console.log('モデル保存開始:', filename);
     // モデルをJSON形式にシリアライズ
     const modelJson = JSON.stringify(model, null, 2);
+    console.log('モデルをシリアライズしました（サイズ:' + modelJson.length + 'バイト）');
     
     // サーバーにデータを送信（データベースに保存）
+    console.log('APIリクエスト開始: /api/models/save');
     const response = await apiRequest(
       'POST',
       `/api/models/save`,
@@ -31,7 +34,15 @@ export async function saveModelToFile(
       }
     );
     
+    console.log('サーバーからのレスポンス:', response.status);
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`サーバーエラー: ${errorData.error || response.statusText}. ${errorData.details || ''}`);
+    }
+    
     const data = await response.json();
+    console.log('保存成功、サーバーレスポンス:', data);
     
     // 成功メッセージを表示
     useAppStore.getState().setStatusMessage({
@@ -45,16 +56,30 @@ export async function saveModelToFile(
     // レスポンスにモデルIDが含まれていれば保存
     if (data?.model?.id) {
       console.log(`Model saved with ID: ${data.model.id}`);
+      console.log(`File ID: ${data.file?.id || 'unknown'}`);
     }
     
     return true;
   } catch (error) {
+    // エラーの詳細を取得
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : (typeof error === 'object' && error !== null) 
+        ? JSON.stringify(error)
+        : '不明なエラー';
+    
     // エラーメッセージを表示
     useAppStore.getState().setStatusMessage({
-      text: `モデルの保存に失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`,
+      text: `モデルの保存に失敗しました: ${errorMessage}`,
       type: 'error',
     });
+    
+    // 詳細なログ
     console.error('Error saving model:', error);
+    if (error instanceof Error && error.stack) {
+      console.error('Error stack:', error.stack);
+    }
+    
     return false;
   }
 }

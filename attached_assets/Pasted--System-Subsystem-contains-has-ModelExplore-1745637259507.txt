@@ -1,0 +1,50 @@
+現在、以下の問題が残っています：
+- 図形要素（System／Subsystemブロック）やリレーションシップ（contains／has線）をクリック・ダブルクリックしても ModelExplorer の Properties タブに何も表示されない
+- 「保存」ボタン押下時にモデル保存処理で `Error {}` が発生し、project.sysml に書き出せない
+
+これらを解消するため、Replit AIエージェントに次の修正をコード生成させてください。
+
+---
+
+## 1. プロパティパネル連携の再確認・修正  
+1. **DiagramEditor.tsx**  
+   - `paper.on('cell:pointerclick', ...)` と `paper.on('link:pointerclick', ...)` が正しく動作しているか、ID取得直後に `console.log(id)` を追加して確認。  
+   - イベントハンドラ内で `useStore.getState().setSelectedElement(id)` を必ず呼び出す。ストア更新直後にも `console.log(useStore.getState().selectedElementId)` で確認。  
+   - `cell:pointerdblclick` についても同様に設定し、クリック／ダブルクリックの両方で작동するように。
+
+2. **ModelExplorer.tsx**  
+   - `selectedElementId` の取得ロジックを見直し、以下の順番で `useStore` を呼び出す：  
+     ```ts
+     const selectedId = useStore(state => state.selectedElementId);
+     console.log('ModelExplorer rendering, selectedId=', selectedId);
+     const element = useStore(state => state.elements[selectedId]);
+     ```  
+   - `element` が truthy の場合にのみフォームをレンダリングし、必ず `element.name`／`element.type` が表示される条件分岐を実装する。
+
+3. **Zustand ストア**  
+   - `selectedElementId` と `elements` を更新するアクション `updateElement`／`setSelectedElement` が正しく定義されているか確認。必要なら初期値や型を明示して再生成。
+
+---
+
+## 2. モデル保存・読み込みエラーの修正  
+1. **ファイル入出力 (App.tsx など)**  
+   - `saveModel()` と `loadModel()` 関数に詳細なエラーハンドリングを追加し、catch したエラー内容を `console.error(error)` で完全表示する。  
+   - `fs.writeFileSync('project.sysml', data)` を使っている場合は、Replit環境下でも動作するよう `import { writeFileSync, readFileSync } from 'fs'` を先頭に追加。  
+   - 書き込みパスに誤りがないか、絶対パス／相対パスを明示して確認（例: `./project.sysml`）。
+
+2. **UI ボタンの連携**  
+   - 「保存」ボタンの `onClick` ハンドラに `await saveModel()` を追加し、完了時の成功メッセージ表示（Snackbar）を実装。  
+   - 「読み込み」ボタンのハンドラでも同様に `await loadModel()` → ストア初期化 → JointJS で再描画の順番を明示。
+
+3. **動作確認用テスト追加**  
+   - モデル保存後に `project.sysml` がファイルシステム上に生成され、内容が正しいJSON形式かを確認するテストケース（Jest）を生成。
+
+---
+
+## 3. テスト手順  
+- ダイアグラム上の任意のノード／リンクをクリック → コンソールにIDとストア値が出力され、プロパティパネルに情報が表示される  
+- プロパティを編集 → 即時に図形ラベルやスタイルが更新される  
+- 「保存」ボタンを押下 → コンソールに保存成功メッセージ、project.sysml ファイルが生成される  
+- 「読み込み」ボタンを押下 → 既存ファイルからモデルがロードされ、図が再構築される  
+
+これらを踏まえ、上記修正を含む完全なコードを生成してください。  
