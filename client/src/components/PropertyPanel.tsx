@@ -125,6 +125,23 @@ export default function PropertyPanel() {
     }
   };
   
+  // リレーションシップ表示のためのソース・ターゲット要素名を取得
+  const getRelationshipEndpoints = () => {
+    if (!selectedRelationship || !currentDiagram) return { sourceName: '', targetName: '' };
+    
+    // ダイアグラム内の要素からソースとターゲットの名前を検索
+    const sourceElement = currentDiagram.elements.find(e => e.id === selectedRelationship.sourceId);
+    const targetElement = currentDiagram.elements.find(e => e.id === selectedRelationship.targetId);
+    
+    return {
+      sourceName: sourceElement?.name || '不明なソース',
+      targetName: targetElement?.name || '不明なターゲット'
+    };
+  };
+  
+  // エンドポイント情報
+  const relationshipEndpoints = getRelationshipEndpoints();
+
   const handleRelationshipChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     
@@ -293,7 +310,7 @@ export default function PropertyPanel() {
                   type="text" 
                   name="sourceName"
                   className="w-full px-3 py-2 border border-neutral-300 bg-neutral-50 rounded-md shadow-sm"
-                  value={selectedRelationship.sourceName || ''}
+                  value={relationshipEndpoints.sourceName}
                   disabled
                 />
               </div>
@@ -303,7 +320,7 @@ export default function PropertyPanel() {
                   type="text" 
                   name="targetName"
                   className="w-full px-3 py-2 border border-neutral-300 bg-neutral-50 rounded-md shadow-sm"
-                  value={selectedRelationship.targetName || ''}
+                  value={relationshipEndpoints.targetName}
                   disabled
                 />
               </div>

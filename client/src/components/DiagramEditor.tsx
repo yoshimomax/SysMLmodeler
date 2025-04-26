@@ -90,14 +90,14 @@ export default function DiagramEditor() {
             ...currentDiagram.relationships,
             {
               id: crypto.randomUUID(),
-              type: 'composition',
+              type: 'composition' as const,
               sourceId: id1,
               targetId: id2,
               name: 'contains'
             },
             {
               id: crypto.randomUUID(),
-              type: 'aggregation',
+              type: 'aggregation' as const,
               sourceId: id1,
               targetId: id3,
               name: 'has'
