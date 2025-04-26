@@ -1,22 +1,15 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Feature } from '../kerml/Feature';
-import { BlockDefinition } from './BlockDefinition';
-import { PartDefinition } from './PartDefinition';
+import { Definition } from './Definition';
+import { SysML2_PortDefinition } from './interfaces';
 
 /**
  * SysML v2 PortDefinition クラス
  * SysML v2 言語仕様のポート定義を表現する
- * @see https://www.omg.org/spec/SysML/2.0/Beta1
+ * @see https://www.omg.org/spec/SysML/2.0/Beta3
  */
-export class PortDefinition extends Feature {
-  /** ポートの所有者となるブロック定義 */
-  ownerBlock?: BlockDefinition;
-  
-  /** ポートの所有者となるパート定義 */
-  ownerPart?: PartDefinition;
-  
-  /** ポートの型（インターフェース型など） */
-  typeName: string;
+export class PortDefinition extends Definition {
+  /** ポートの型名（インターフェース型など） */
+  typeName?: string;
   
   /** ポートの方向 (in, out, inout) */
   direction?: 'in' | 'out' | 'inout';
@@ -33,52 +26,129 @@ export class PortDefinition extends Feature {
   /** ポートの多重度（数量）を表す文字列（例: '0..1', '1..*', '*'） */
   multiplicity?: string;
   
-  /** UI上の位置情報（オプション） */
-  position?: { x: number; y: number };
+  /** このポート定義を使用するポート使用のIDリスト */
+  portUsages: string[] = [];
   
   /**
    * PortDefinition コンストラクタ
-   * @param name ポート名
-   * @param typeName ポートの型名
-   * @param ownerBlock ポートの所有者となるブロック（オプション）
-   * @param direction ポートの方向（オプション）
-   * @param multiplicity 多重度（オプション）
-   * @param id 明示的に指定する場合のID（省略時は自動生成）
+   * @param options 初期化オプション
    */
-  constructor(
-    name: string,
-    typeName: string,
-    ownerBlock?: BlockDefinition,
-    direction?: 'in' | 'out' | 'inout',
-    multiplicity?: string,
-    id?: string
-  ) {
-    // Featureクラスのコンストラクタ呼び出し
-    super(name, undefined, undefined, id);
+  constructor(options: {
+    name?: string;
+    typeName?: string;
+    direction?: 'in' | 'out' | 'inout';
+    isProxy?: boolean;
+    isBehavior?: boolean;
+    isConjugated?: boolean;
+    multiplicity?: string;
+    portUsages?: string[];
+    id?: string;
+    ownerId?: string;
+    isAbstract?: boolean;
+    isVariation?: boolean;
+  }) {
+    // Definitionクラスのコンストラクタ呼び出し
+    super({
+      id: options.id,
+      name: options.name,
+      ownerId: options.ownerId,
+      isAbstract: options.isAbstract,
+      isVariation: options.isVariation
+    });
     
-    this.typeName = typeName;
-    this.ownerBlock = ownerBlock;
-    this.direction = direction;
-    this.multiplicity = multiplicity;
+    this.typeName = options.typeName;
+    this.direction = options.direction;
+    this.multiplicity = options.multiplicity;
+    this.portUsages = options.portUsages || [];
+    
+    if (options.isProxy !== undefined) {
+      this.isProxy = options.isProxy;
+    }
+    
+    if (options.isBehavior !== undefined) {
+      this.isBehavior = options.isBehavior;
+    }
+    
+    if (options.isConjugated !== undefined) {
+      this.isConjugated = options.isConjugated;
+    }
   }
   
   /**
-   * ポートの情報をオブジェクトとして返す
+   * ポート使用を追加する
+   * @param portUsageId 追加するポート使用のID
    */
-  override toObject() {
+  addPortUsage(portUsageId: string): void {
+    if (!this.portUsages.includes(portUsageId)) {
+      this.portUsages.push(portUsageId);
+    }
+  }
+  
+  /**
+   * ポート使用を削除する
+   * @param portUsageId 削除するポート使用のID
+   * @returns 削除成功した場合はtrue、そうでなければfalse
+   */
+  removePortUsage(portUsageId: string): boolean {
+    const initialLength = this.portUsages.length;
+    this.portUsages = this.portUsages.filter(id => id !== portUsageId);
+    return this.portUsages.length !== initialLength;
+  }
+  
+  /**
+   * JSON形式から変換
+   * @param json JSON表現
+   * @returns PortDefinitionインスタンス
+   */
+  static fromJSON(json: SysML2_PortDefinition): PortDefinition {
+    return new PortDefinition({
+      id: json.id,
+      name: json.name,
+      ownerId: json.ownerId,
+      typeName: json.typeName,
+      direction: json.direction,
+      isProxy: json.isProxy,
+      isBehavior: json.isBehavior,
+      isConjugated: json.isConjugated,
+      multiplicity: json.multiplicity,
+      portUsages: json.portUsages,
+      isAbstract: json.isAbstract,
+      isVariation: json.isVariation
+    });
+  }
+  
+  /**
+   * JSON形式に変換
+   * @returns JSON表現
+   */
+  toJSON(): SysML2_PortDefinition {
     return {
-      ...super.toObject(),
-      ownerBlockId: this.ownerBlock?.id,
-      ownerBlockName: this.ownerBlock?.name,
-      ownerPartId: this.ownerPart?.id,
-      ownerPartName: this.ownerPart?.name,
+      ...super.toJSON(),
+      __type: 'PortDefinition',
       typeName: this.typeName,
       direction: this.direction,
       isProxy: this.isProxy,
       isBehavior: this.isBehavior,
       isConjugated: this.isConjugated,
       multiplicity: this.multiplicity,
-      position: this.position
+      portUsages: this.portUsages
+    };
+  }
+  
+  /**
+   * オブジェクトをプレーンなJavaScriptオブジェクトに変換する（UI表示用）
+   * @returns プレーンなJavaScriptオブジェクト
+   */
+  override toObject() {
+    return {
+      ...super.toObject(),
+      typeName: this.typeName,
+      direction: this.direction,
+      isProxy: this.isProxy,
+      isBehavior: this.isBehavior,
+      isConjugated: this.isConjugated,
+      multiplicity: this.multiplicity,
+      stereotype: 'port_def'
     };
   }
 }

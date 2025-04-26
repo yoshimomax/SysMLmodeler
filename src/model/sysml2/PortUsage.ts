@@ -50,6 +50,7 @@ export class PortUsage extends Usage {
     id?: string;
     ownerId?: string;
     isAbstract?: boolean;
+    isVariation?: boolean;
   }) {
     // Usageクラスのコンストラクタ呼び出し
     super({
@@ -57,7 +58,8 @@ export class PortUsage extends Usage {
       name: options.name,
       definitionId: options.portDefinitionId,
       ownerId: options.ownerId,
-      isAbstract: options.isAbstract
+      isAbstract: options.isAbstract,
+      isVariation: options.isVariation
     });
 
     this.portDefinitionId = options.portDefinitionId;
@@ -70,6 +72,11 @@ export class PortUsage extends Usage {
 
     if (options.isConjugated !== undefined) {
       this.isConjugated = options.isConjugated;
+    }
+
+    // ポート定義が指定されている場合、そのポート定義に自身を登録
+    if (this.portDefinition && this.id) {
+      this.portDefinition.addPortUsage(this.id);
     }
   }
 
@@ -130,7 +137,8 @@ export class PortUsage extends Usage {
       isConjugated: json.isConjugated,
       flowSpecifications: json.flowSpecifications,
       interfaces: json.interfaces,
-      isAbstract: json.isAbstract
+      isAbstract: json.isAbstract,
+      isVariation: json.isVariation
     });
   }
 
@@ -140,16 +148,13 @@ export class PortUsage extends Usage {
    */
   toJSON(): SysML2_PortUsage {
     return {
+      ...super.toJSON(),
       __type: 'PortUsage',
-      id: this.id,
-      name: this.name,
-      ownerId: this.ownerId,
       portDefinition: this.portDefinitionId,
       direction: this.direction,
       isConjugated: this.isConjugated,
       flowSpecifications: this.flowSpecifications,
-      interfaces: this.interfaces,
-      isAbstract: this.isAbstract
+      interfaces: this.interfaces
     };
   }
 
@@ -157,19 +162,17 @@ export class PortUsage extends Usage {
    * オブジェクトをプレーンなJavaScriptオブジェクトに変換する（UI表示用）
    * @returns プレーンなJavaScriptオブジェクト
    */
-  toObject() {
+  override toObject() {
     return {
-      id: this.id,
-      name: this.name,
-      stereotype: 'port',
-      definitionId: this.portDefinitionId,
+      ...super.toObject(),
+      portDefinitionId: this.portDefinitionId,
       direction: this.direction,
       isConjugated: this.isConjugated,
       flowSpecifications: this.flowSpecifications,
       interfaces: this.interfaces,
       position: this.position,
       size: this.size,
-      isAbstract: this.isAbstract
+      stereotype: 'port'
     };
   }
 }

@@ -67,11 +67,14 @@ export class BlockDefinition extends Type {
     
     // 属性とポートの親設定
     this.attributes.forEach(attr => {
-      attr.ownerBlock = this;
+      if ('ownerBlock' in attr) {
+        (attr as any).ownerBlock = this;
+      }
+      attr.ownerId = this.id;
     });
     
     this.ports.forEach(port => {
-      port.ownerBlock = this;
+      port.ownerId = this.id;
     });
   }
   
@@ -80,7 +83,10 @@ export class BlockDefinition extends Type {
    * @param attribute 追加する属性
    */
   addAttribute(attribute: AttributeDefinition): void {
-    attribute.ownerBlock = this;
+    if ('ownerBlock' in attribute) {
+      (attribute as any).ownerBlock = this;
+    }
+    attribute.ownerId = this.id;
     this.attributes.push(attribute);
   }
   
@@ -89,7 +95,7 @@ export class BlockDefinition extends Type {
    * @param port 追加するポート
    */
   addPort(port: PortDefinition): void {
-    port.ownerBlock = this;
+    port.ownerId = this.id;
     this.ports.push(port);
   }
   

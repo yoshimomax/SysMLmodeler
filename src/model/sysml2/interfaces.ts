@@ -429,6 +429,20 @@ export interface SysML2_ViewpointUsage extends SysML2_Usage {
 }
 
 /**
+ * SysML2 PortDefinition インターフェース
+ */
+export interface SysML2_PortDefinition extends SysML2_Definition {
+  __type: 'PortDefinition';
+  typeName?: string;
+  direction?: 'in' | 'out' | 'inout';
+  isProxy?: boolean;
+  isBehavior?: boolean;
+  isConjugated?: boolean;
+  multiplicity?: string;
+  portUsages?: string[];
+}
+
+/**
  * SysML2 PortUsage インターフェース
  */
 export interface SysML2_PortUsage extends SysML2_Usage {
