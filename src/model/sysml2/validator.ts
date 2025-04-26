@@ -28,9 +28,9 @@ export class ValidationError extends Error {
  * @param element 検証対象要素
  * @throws ValidationError 制約違反がある場合
  */
-export function validateNameRequired(element: Definition): void {
+export function validateNameRequired(element: any): void {
   if (!element.name || element.name.trim() === '') {
-    throw new ValidationError(`${element.constructor.name} (id=${element.id})は名前が必須です`);
+    throw new ValidationError(`${element.constructor?.name || 'Element'} (id=${element.id})は名前が必須です`);
   }
 }
 
@@ -85,14 +85,14 @@ export function validateMultiplicity(multiplicity: string): void {
  * @param visitedIds 訪問済みID配列（再帰呼出し用）
  * @throws ValidationError 制約違反がある場合
  */
-export function validateNoCyclicSpecialization(element: Definition | Usage, visitedIds: string[] = []): void {
+export function validateNoCyclicSpecialization(element: any, visitedIds: string[] = []): void {
   if (!element.specializationIds || element.specializationIds.length === 0) {
     return; // 特化がない場合はOK
   }
   
   // 自己参照チェック（直接的な循環）
   if (element.specializationIds.includes(element.id)) {
-    throw new ValidationError(`${element.constructor.name} (id=${element.id}, name=${element.name})が自身を特化(specialization)しています`);
+    throw new ValidationError(`${element.constructor?.name || 'Element'} (id=${element.id}, name=${element.name})が自身を特化(specialization)しています`);
   }
   
   // 循環参照チェック（間接的な循環）
@@ -113,10 +113,10 @@ export function validateNoCyclicSpecialization(element: Definition | Usage, visi
  * @param usage 検証対象のUsage
  * @throws ValidationError 制約違反がある場合
  */
-export function validateUsageDefinitionReference(usage: Usage): void {
+export function validateUsageDefinitionReference(usage: any): void {
   // 抽象要素でない場合は定義参照が必要
   if (!usage.isAbstract && !usage.definitionId) {
-    throw new ValidationError(`${usage.constructor.name} (id=${usage.id}, name=${usage.name})にDefinitionが関連付けられていません`);
+    throw new ValidationError(`${usage.constructor?.name || 'Usage'} (id=${usage.id}, name=${usage.name})にDefinitionが関連付けられていません`);
   }
 }
 
@@ -127,9 +127,12 @@ export function validateUsageDefinitionReference(usage: Usage): void {
  * @param allowedFeatureTypes 許可された特性の型名配列
  * @throws ValidationError 制約違反がある場合
  */
-export function validatePortDefinitionContent(portDef: PortDefinition, allowedFeatureTypes: string[] = ['AttributeDefinition', 'Feature']): void {
+export function validatePortDefinitionContent(portDef: any, allowedFeatureTypes: string[] = ['AttributeDefinition', 'Feature']): void {
   // 注: 実際の実装では、portDef.ownedFeaturesから各要素を取得して型を確認する必要があります
   // 今回は簡略化のため省略
+  if (!portDef.ownedFeatures) {
+    return; // 所有特性がない場合はチェック不要
+  }
 }
 
 /**
@@ -137,7 +140,7 @@ export function validatePortDefinitionContent(portDef: PortDefinition, allowedFe
  * @param definition 検証対象のDefinition要素
  * @throws ValidationError 制約違反がある場合
  */
-export function validateSysMLDefinition(definition: Definition): void {
+export function validateSysMLDefinition(definition: any): void {
   // 名前必須チェック
   validateNameRequired(definition);
   
@@ -145,7 +148,7 @@ export function validateSysMLDefinition(definition: Definition): void {
   validateNoCyclicSpecialization(definition);
   
   // 抽象要素に対するUsage参照チェック
-  if (definition.isAbstract && definition.usageReferences.length > 0) {
+  if (definition.isAbstract && definition.usageReferences && definition.usageReferences.length > 0) {
     throw new ValidationError(`抽象Definition(id=${definition.id}, name=${definition.name})に直接Usageが関連付けられています`);
   }
 }
@@ -155,7 +158,7 @@ export function validateSysMLDefinition(definition: Definition): void {
  * @param usage 検証対象のUsage要素
  * @throws ValidationError 制約違反がある場合
  */
-export function validateSysMLUsage(usage: Usage): void {
+export function validateSysMLUsage(usage: any): void {
   // 循環特化チェック
   validateNoCyclicSpecialization(usage);
   
@@ -168,12 +171,21 @@ export function validateSysMLUsage(usage: Usage): void {
  * @param partDef 検証対象のPartDefinition
  * @throws ValidationError 制約違反がある場合
  */
-export function validatePartDefinition(partDef: PartDefinition): void {
+export function validatePartDefinition(partDef: any): void {
   // まず基本的な制約チェック
   validateSysMLDefinition(partDef);
   
   // PartDefinition固有のチェック
-  // (例: 特殊な制約があれば追加)
+  // 名前が必要
+  if (!partDef.name || partDef.name.trim() === '') {
+    throw new ValidationError(`PartDefinition (id=${partDef.id})に名前が必要です`);
+  }
+  
+  // ポートの存在チェック（もしポートが無いと不正な場合）
+  // 注：実際の仕様に応じて調整
+  // if (partDef.ports.length === 0) {
+  //   throw new ValidationError(`PartDefinition(id=${partDef.id}, name=${partDef.name})は少なくとも1つのポートを持つ必要があります`);
+  // }
 }
 
 /**
@@ -181,7 +193,7 @@ export function validatePartDefinition(partDef: PartDefinition): void {
  * @param partUsage 検証対象のPartUsage
  * @throws ValidationError 制約違反がある場合
  */
-export function validatePartUsage(partUsage: PartUsage): void {
+export function validatePartUsage(partUsage: any): void {
   // まず基本的な制約チェック
   validateSysMLUsage(partUsage);
   
@@ -196,7 +208,7 @@ export function validatePartUsage(partUsage: PartUsage): void {
  * @param interfaceDef 検証対象のInterfaceDefinition
  * @throws ValidationError 制約違反がある場合
  */
-export function validateInterfaceDefinition(interfaceDef: InterfaceDefinition): void {
+export function validateInterfaceDefinition(interfaceDef: any): void {
   // まず基本的な制約チェック
   validateSysMLDefinition(interfaceDef);
   
@@ -212,7 +224,7 @@ export function validateInterfaceDefinition(interfaceDef: InterfaceDefinition): 
  * @param connectionDef 検証対象のConnectionDefinition
  * @throws ValidationError 制約違反がある場合
  */
-export function validateConnectionDefinition(connectionDef: ConnectionDefinition): void {
+export function validateConnectionDefinition(connectionDef: any): void {
   // まず基本的な制約チェック
   validateSysMLDefinition(connectionDef);
   

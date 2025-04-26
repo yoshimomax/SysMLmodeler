@@ -117,6 +117,19 @@ export class PartDefinition extends Definition {
   }
   
   /**
+   * KerML制約およびSysML v2の制約を検証する
+   * PartDefinition固有の制約を追加でチェック
+   * @throws ValidationError 制約違反がある場合
+   */
+  validate(): void {
+    // 基底クラス（Definition）の検証
+    super.validate();
+    
+    // PartDefinition固有の制約を検証
+    validatePartDefinition(this);
+  }
+  
+  /**
    * JSONオブジェクトに変換する
    * @returns SysML2_PartDefinition形式のJSONオブジェクト
    */
@@ -172,13 +185,10 @@ export class PartDefinition extends Definition {
    */
   toObject() {
     return {
-      id: this.id,
-      name: this.name,
+      ...super.toObject(),
       stereotype: this.stereotype || 'part_def',
-      isAbstract: this.isAbstract,
       isHuman: this.isHuman,
-      ports: this.ports,
-      ownedFeatures: this.ownedFeatures
+      ports: this.ports
     };
   }
 }
