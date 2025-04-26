@@ -1,278 +1,187 @@
 /**
  * SysML v2 LoopActionUsage クラス
- * 繰り返しアクションの使用を表す
- * OMG SysML v2 Beta3 Part1 §7.17準拠
+ * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.17.5に準拠
+ * 
+ * LoopActionUsageは、繰り返しアクションを表現するクラスです。
+ * 条件が満たされる間、または指定された回数だけ特定のアクションを繰り返し実行します。
  */
 
 import { v4 as uuid } from 'uuid';
-import { ActionUsage, ActionUsageParams } from '../ActionUsage';
-import { SysML2_ActionUsage } from '../interfaces';
-import { ValidationError } from '../validator';
+import { ActionUsage } from '../ActionUsage';
 
-/**
- * ループ種別の定義
- */
-export type LoopType = 'while' | 'until' | 'for' | 'forEach';
-
-/**
- * LoopActionUsage コンストラクタパラメータ
- */
-export interface LoopActionUsageParams extends ActionUsageParams {
-  loopType?: LoopType;             // ループの種類
-  condition?: string;              // ループ条件
-  initActions?: string[];          // 初期化アクション
-  bodyActions?: string[];          // ループ本体アクション
-  updateActions?: string[];        // 更新アクション
-  collection?: string;             // 繰り返し対象コレクション
-  iteratorName?: string;           // イテレータ変数名
-  maxIterations?: number;          // 最大繰り返し回数
-  isParallel?: boolean;            // 並列実行かどうか
-}
-
-/**
- * LoopActionUsage クラス
- * 繰り返し制御を表すアクション
- */
 export class LoopActionUsage extends ActionUsage {
-  /** クラス識別子 */
-  __type: 'LoopActionUsage' = 'LoopActionUsage';
-
-  /** ループの種類 */
-  loopType: LoopType = 'while';
+  /** 繰り返し種別（while, until, forEach） */
+  loopType: 'while' | 'until' | 'forEach';
   
-  /** ループ条件 */
+  /** 繰り返し条件 */
   condition?: string;
   
-  /** 初期化アクション */
-  initActions: string[] = [];
-  
-  /** ループ本体アクション */
-  bodyActions: string[] = [];
-  
-  /** 更新アクション */
-  updateActions: string[] = [];
-  
-  /** 繰り返し対象コレクション */
-  collection?: string;
-  
-  /** イテレータ変数名 */
-  iteratorName?: string;
-  
-  /** 最大繰り返し回数 */
+  /** 繰り返し回数の上限（オプション） */
   maxIterations?: number;
   
-  /** 並列実行かどうか */
-  isParallel: boolean = false;
-
+  /** 繰り返し本体のアクションID配列 */
+  bodyActions: string[] = [];
+  
+  /** 
+   * 設定パラメータID （forEachループで使用）
+   * forEachループの場合、このパラメータは反復ごとに値が設定されます
+   */
+  setupParameterId?: string;
+  
   /**
    * LoopActionUsage コンストラクタ
-   * @param params LoopActionUsageのプロパティ
+   * @param options 初期化オプション
    */
-  constructor(params: LoopActionUsageParams = {}) {
-    super(params);
+  constructor(options: {
+    id?: string;
+    name?: string;
+    loopType: 'while' | 'until' | 'forEach';
+    condition?: string;
+    maxIterations?: number;
+    bodyActions?: string[];
+    setupParameterId?: string;
+    actionDefinition?: string;
+    successions?: string[];
+    parameterValues?: Record<string, any>;
+    parameters?: string[];
+    guard?: string;
+    ownerId?: string;
+    isAbstract?: boolean;
+  }) {
+    // ActionUsage基底クラスのコンストラクタを呼び出し
+    super({
+      id: options.id,
+      name: options.name,
+      actionDefinition: options.actionDefinition,
+      successions: options.successions,
+      parameterValues: options.parameterValues,
+      parameters: options.parameters,
+      guard: options.guard,
+      ownerId: options.ownerId,
+      isAbstract: options.isAbstract
+    });
     
-    if (params.loopType) this.loopType = params.loopType;
-    this.condition = params.condition;
-    if (params.initActions) this.initActions = [...params.initActions];
-    if (params.bodyActions) this.bodyActions = [...params.bodyActions];
-    if (params.updateActions) this.updateActions = [...params.updateActions];
-    this.collection = params.collection;
-    this.iteratorName = params.iteratorName;
-    this.maxIterations = params.maxIterations;
-    if (params.isParallel !== undefined) this.isParallel = params.isParallel;
+    // ループ特有のプロパティを初期化
+    this.loopType = options.loopType;
+    this.condition = options.condition;
+    this.maxIterations = options.maxIterations;
+    this.bodyActions = options.bodyActions || [];
+    this.setupParameterId = options.setupParameterId;
   }
-
+  
   /**
-   * アクションの検証
-   * @throws ValidationError 検証エラー
-   */
-  validate(): void {
-    super.validate();
-    
-    // ループタイプに応じた必須項目チェック
-    switch (this.loopType) {
-      case 'while':
-      case 'until':
-        if (!this.condition) {
-          throw new ValidationError(`${this.loopType}タイプのLoopActionUsage (id=${this.id}, name=${this.name})は` +
-            `condition属性を持つ必要があります`);
-        }
-        break;
-        
-      case 'for':
-        // for ループは初期化、条件、更新が必要
-        if (this.initActions.length === 0) {
-          throw new ValidationError(`forタイプのLoopActionUsage (id=${this.id}, name=${this.name})は` +
-            `少なくとも1つのinitActionを持つ必要があります`);
-        }
-        if (!this.condition) {
-          throw new ValidationError(`forタイプのLoopActionUsage (id=${this.id}, name=${this.name})は` +
-            `condition属性を持つ必要があります`);
-        }
-        if (this.updateActions.length === 0) {
-          throw new ValidationError(`forタイプのLoopActionUsage (id=${this.id}, name=${this.name})は` +
-            `少なくとも1つのupdateActionを持つ必要があります`);
-        }
-        break;
-        
-      case 'forEach':
-        // forEach ループはコレクションとイテレータが必要
-        if (!this.collection) {
-          throw new ValidationError(`forEachタイプのLoopActionUsage (id=${this.id}, name=${this.name})は` +
-            `collection属性を持つ必要があります`);
-        }
-        if (!this.iteratorName) {
-          throw new ValidationError(`forEachタイプのLoopActionUsage (id=${this.id}, name=${this.name})は` +
-            `iteratorName属性を持つ必要があります`);
-        }
-        break;
-    }
-    
-    // ループ本体は必須
-    if (this.bodyActions.length === 0) {
-      throw new ValidationError(`LoopActionUsage (id=${this.id}, name=${this.name})は` +
-        `少なくとも1つのbodyActionを持つ必要があります`);
-    }
-    
-    // 最大繰り返し回数が指定されている場合は正の数であることを確認
-    if (this.maxIterations !== undefined && this.maxIterations <= 0) {
-      throw new ValidationError(`LoopActionUsage (id=${this.id}, name=${this.name})の` +
-        `maxIterations属性は正の数でなければなりません`);
-    }
-  }
-
-  /**
-   * 初期化アクションを追加
-   * @param actionId 追加するアクションのID
-   */
-  addInitAction(actionId: string): void {
-    if (!this.initActions.includes(actionId)) {
-      this.initActions.push(actionId);
-    }
-  }
-
-  /**
-   * 初期化アクションを削除
-   * @param actionId 削除するアクションのID
-   * @returns 削除に成功した場合はtrue
-   */
-  removeInitAction(actionId: string): boolean {
-    const index = this.initActions.indexOf(actionId);
-    if (index >= 0) {
-      this.initActions.splice(index, 1);
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * ループ本体アクションを追加
-   * @param actionId 追加するアクションのID
+   * 本体アクションを追加する
+   * @param actionId 追加するアクションID
    */
   addBodyAction(actionId: string): void {
     if (!this.bodyActions.includes(actionId)) {
       this.bodyActions.push(actionId);
     }
   }
-
+  
   /**
-   * ループ本体アクションを削除
-   * @param actionId 削除するアクションのID
-   * @returns 削除に成功した場合はtrue
+   * 本体アクションを削除する
+   * @param actionId 削除するアクションID
+   * @returns 削除成功した場合はtrue、そうでなければfalse
    */
   removeBodyAction(actionId: string): boolean {
-    const index = this.bodyActions.indexOf(actionId);
-    if (index >= 0) {
-      this.bodyActions.splice(index, 1);
-      return true;
-    }
-    return false;
+    const initialLength = this.bodyActions.length;
+    this.bodyActions = this.bodyActions.filter(id => id !== actionId);
+    return this.bodyActions.length !== initialLength;
   }
-
+  
   /**
-   * 更新アクションを追加
-   * @param actionId 追加するアクションのID
+   * ループ条件を設定する
+   * @param condition 条件式
    */
-  addUpdateAction(actionId: string): void {
-    if (!this.updateActions.includes(actionId)) {
-      this.updateActions.push(actionId);
-    }
+  setCondition(condition: string): void {
+    this.condition = condition;
   }
-
+  
   /**
-   * 更新アクションを削除
-   * @param actionId 削除するアクションのID
-   * @returns 削除に成功した場合はtrue
+   * 最大繰り返し回数を設定する
+   * @param maxCount 最大繰り返し回数
    */
-  removeUpdateAction(actionId: string): boolean {
-    const index = this.updateActions.indexOf(actionId);
-    if (index >= 0) {
-      this.updateActions.splice(index, 1);
-      return true;
-    }
-    return false;
+  setMaxIterations(maxCount: number): void {
+    this.maxIterations = maxCount;
   }
-
+  
   /**
-   * JSON形式に変換
-   * @returns JSONオブジェクト
+   * setupParameterIdを設定する
+   * @param parameterId パラメータID
    */
-  toJSON(): SysML2_ActionUsage & { 
-    loopType: LoopType;
-    condition?: string;
-    initActions: string[];
-    bodyActions: string[];
-    updateActions: string[];
-    collection?: string;
-    iteratorName?: string;
-    maxIterations?: number;
-    isParallel: boolean;
-  } {
+  setSetupParameterId(parameterId: string): void {
+    this.setupParameterId = parameterId;
+  }
+  
+  /**
+   * ループ種別を変更する
+   * @param loopType 新しいループ種別
+   */
+  setLoopType(loopType: 'while' | 'until' | 'forEach'): void {
+    this.loopType = loopType;
+  }
+  
+  /**
+   * ループアクションの情報をオブジェクトとして返す
+   */
+  override toObject() {
+    const baseObject = super.toObject();
     return {
-      ...super.toJSON(),
-      __type: this.__type,
+      ...baseObject,
       loopType: this.loopType,
       condition: this.condition,
-      initActions: [...this.initActions],
-      bodyActions: [...this.bodyActions],
-      updateActions: [...this.updateActions],
-      collection: this.collection,
-      iteratorName: this.iteratorName,
       maxIterations: this.maxIterations,
-      isParallel: this.isParallel
+      bodyActions: [...this.bodyActions],
+      setupParameterId: this.setupParameterId
     };
   }
-
+  
   /**
-   * JSONからLoopActionUsageを復元
-   * @param json JSONオブジェクト
-   * @returns 復元されたLoopActionUsage
+   * JSONデータからLoopActionUsageインスタンスを作成する
+   * @param json JSON形式のデータ
+   * @returns 新しいLoopActionUsageインスタンス
    */
-  static fromJSON(json: ReturnType<LoopActionUsage['toJSON']>): LoopActionUsage {
-    const actionUsage = new LoopActionUsage({
-      id: json.id,
+  static fromJSON(json: any): LoopActionUsage {
+    if (!json || typeof json !== 'object') {
+      throw new Error('有効なJSONオブジェクトではありません');
+    }
+    
+    // 必須のループ種別を検証
+    if (!json.loopType || !['while', 'until', 'forEach'].includes(json.loopType)) {
+      throw new Error('有効なloopTypeが指定されていません');
+    }
+    
+    // LoopActionUsageインスタンスを作成
+    const loopAction = new LoopActionUsage({
+      id: json.id || uuid(),
       name: json.name,
-      description: json.description,
+      ownerId: json.ownerId,
+      isAbstract: json.isAbstract,
       actionDefinition: json.actionDefinition,
-      isReference: json.isReference,
+      successions: Array.isArray(json.successions) ? [...json.successions] : [],
+      parameters: Array.isArray(json.parameters) ? [...json.parameters] : [],
+      parameterValues: json.parameterValues || {},
       guard: json.guard,
       loopType: json.loopType,
       condition: json.condition,
-      collection: json.collection,
-      iteratorName: json.iteratorName,
-      maxIterations: json.maxIterations,
-      isParallel: json.isParallel
+      maxIterations: typeof json.maxIterations === 'number' ? json.maxIterations : undefined,
+      bodyActions: Array.isArray(json.bodyActions) ? [...json.bodyActions] : [],
+      setupParameterId: json.setupParameterId
     });
     
-    if (json.parameters) actionUsage.parameters = [...json.parameters];
-    if (json.bodies) actionUsage.bodies = [...json.bodies];
-    if (json.successions) actionUsage.successions = [...json.successions];
-    if (json.preconditions) actionUsage.preconditions = [...json.preconditions];
-    if (json.postconditions) actionUsage.postconditions = [...json.postconditions];
-    if (json.initActions) actionUsage.initActions = [...json.initActions];
-    if (json.bodyActions) actionUsage.bodyActions = [...json.bodyActions];
-    if (json.updateActions) actionUsage.updateActions = [...json.updateActions];
-
-    return actionUsage;
+    return loopAction;
+  }
+  
+  /**
+   * JSONシリアライズ用のメソッド
+   * @returns JSON形式のオブジェクト
+   */
+  toJSON(): any {
+    const obj = this.toObject();
+    return {
+      ...obj,
+      __type: 'LoopActionUsage'
+    };
   }
 }

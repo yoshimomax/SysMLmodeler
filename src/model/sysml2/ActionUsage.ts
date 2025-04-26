@@ -1,107 +1,89 @@
 /**
  * SysML v2 ActionUsage クラス
- * アクションの使用を表すクラス
- * OMG SysML v2 Beta3 Part1 §7.17準拠
+ * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.17に準拠
+ * 
+ * ActionUsageは、アクションの使用を表すクラスです。
+ * 後続関係、パラメータ値、および実行順序を定義します。
  */
 
 import { v4 as uuid } from 'uuid';
-import { Usage } from './Usage';
-import { SysML2_ActionUsage } from './interfaces';
-import { ValidationError } from './validator';
+import { Feature } from '../kerml/Feature';
 
-/**
- * ActionUsage コンストラクタパラメータ
- */
-export interface ActionUsageParams {
-  id?: string;
-  name?: string;
-  description?: string;
-  actionDefinition?: string;
-  isReference?: boolean;
-  parameters?: string[];
-  bodies?: string[];
-  guard?: string;
-  successions?: string[];
-  preconditions?: string[];
-  postconditions?: string[];
-}
-
-/**
- * ActionUsage クラス
- * SysML v2 のアクション使用を表現する
- */
-export class ActionUsage extends Usage implements SysML2_ActionUsage {
-  /** クラス識別子 */
-  __type: 'ActionUsage' = 'ActionUsage';
-  
-  /** 参照するActionDefinitionのID */
-  actionDefinition?: string;
-  
-  /** このActionUsageが他のActionUsageへの参照かどうか */
-  isReference: boolean = false;
-  
-  /** パラメータのIDリスト */
-  parameters: string[] = [];
-  
-  /** アクション本体（Behavior）のIDリスト */
-  bodies: string[] = [];
-  
-  /** ガード条件 */
-  guard?: string;
-  
-  /** 後続アクション（succession関係）のIDリスト */
+export class ActionUsage extends Feature {
+  /** このアクションの後続アクションのID配列 */
   successions: string[] = [];
   
-  /** 事前条件のIDリスト */
-  preconditions: string[] = [];
+  /** このアクションが参照するアクション定義のID */
+  actionDefinition?: string;
   
-  /** 事後条件のIDリスト */
-  postconditions: string[] = [];
-
+  /** アクションが持つパラメータ値のマッピング */
+  parameterValues: Map<string, any> = new Map();
+  
+  /** アクションが持つパラメータ参照のリスト */
+  parameters: string[] = [];
+  
+  /** 実行のガード条件（アクションが実行される条件） */
+  guard?: string;
+  
   /**
-   * ActionUsage コンストラクタ
-   * @param params ActionUsageのプロパティ
+   * アクション使用のコンストラクタ
+   * @param options アクション使用の初期化オプション
    */
-  constructor(params: ActionUsageParams = {}) {
-    super(params);
+  constructor(options: {
+    id?: string;
+    name?: string;
+    actionDefinition?: string;
+    successions?: string[];
+    parameterValues?: Record<string, any>;
+    parameters?: string[];
+    guard?: string;
+    ownerId?: string;
+    isAbstract?: boolean;
+  } = {}) {
+    // Feature基底クラスのコンストラクタを呼び出し
+    super({
+      id: options.id,
+      name: options.name,
+      ownerId: options.ownerId,
+      isAbstract: options.isAbstract
+    });
     
-    this.id = params.id || uuid();
-    this.name = params.name || '';
-    this.description = params.description;
-    this.actionDefinition = params.actionDefinition;
+    this.actionDefinition = options.actionDefinition;
+    this.successions = options.successions || [];
+    this.parameters = options.parameters || [];
+    this.guard = options.guard;
     
-    if (params.isReference !== undefined) this.isReference = params.isReference;
-    if (params.parameters) this.parameters = [...params.parameters];
-    if (params.bodies) this.bodies = [...params.bodies];
-    this.guard = params.guard;
-    if (params.successions) this.successions = [...params.successions];
-    if (params.preconditions) this.preconditions = [...params.preconditions];
-    if (params.postconditions) this.postconditions = [...params.postconditions];
+    // パラメータ値のマッピングを初期化
+    if (options.parameterValues) {
+      Object.entries(options.parameterValues).forEach(([key, value]) => {
+        this.parameterValues.set(key, value);
+      });
+    }
   }
-
+  
   /**
-   * アクションの検証
-   * @throws ValidationError 検証エラー
+   * 後続アクションを追加する
+   * @param successorId 後続アクションのID
    */
-  validate(): void {
-    super.validate();
-    
-    // 名前の存在確認
-    if (!this.name) {
-      throw new ValidationError(`ActionUsage (id=${this.id})はname属性を持つ必要があります`);
+  addSuccession(successorId: string): void {
+    if (!this.successions.includes(successorId)) {
+      this.successions.push(successorId);
     }
-    
-    // 参照の場合は参照先が必要
-    if (this.isReference && !this.actionDefinition) {
-      throw new ValidationError(`参照型ActionUsage (id=${this.id}, name=${this.name})は` +
-        `actionDefinition属性を持つ必要があります`);
-    }
-    
-    // パラメータの整合性検証などのビジネスルールはここに追加
   }
-
+  
   /**
-   * パラメータを追加
+   * 後続アクションを削除する
+   * @param successorId 削除する後続アクションのID
+   * @returns 削除成功した場合はtrue、そうでなければfalse
+   */
+  removeSuccession(successorId: string): boolean {
+    const initialLength = this.successions.length;
+    this.successions = this.successions.filter(id => id !== successorId);
+    return this.successions.length !== initialLength;
+  }
+  
+  /**
+   * パラメータを追加する
    * @param parameterId 追加するパラメータのID
    */
   addParameter(parameterId: string): void {
@@ -109,157 +91,90 @@ export class ActionUsage extends Usage implements SysML2_ActionUsage {
       this.parameters.push(parameterId);
     }
   }
-
+  
   /**
-   * パラメータを削除
-   * @param parameterId 削除するパラメータのID
-   * @returns 削除に成功した場合はtrue
+   * パラメータ値を設定する
+   * @param parameterId パラメータID
+   * @param value パラメータの値
    */
-  removeParameter(parameterId: string): boolean {
-    const index = this.parameters.indexOf(parameterId);
-    if (index >= 0) {
-      this.parameters.splice(index, 1);
-      return true;
-    }
-    return false;
+  setParameterValue(parameterId: string, value: any): void {
+    this.parameterValues.set(parameterId, value);
   }
-
+  
   /**
-   * アクション本体を追加
-   * @param bodyId 追加するアクション本体のID
+   * パラメータ値を取得する
+   * @param parameterId パラメータID
+   * @returns パラメータの値、存在しない場合はundefined
    */
-  addBody(bodyId: string): void {
-    if (!this.bodies.includes(bodyId)) {
-      this.bodies.push(bodyId);
-    }
+  getParameterValue(parameterId: string): any {
+    return this.parameterValues.get(parameterId);
   }
-
+  
   /**
-   * アクション本体を削除
-   * @param bodyId 削除するアクション本体のID
-   * @returns 削除に成功した場合はtrue
+   * ガード条件を設定する
+   * @param condition アクションが実行される条件式
    */
-  removeBody(bodyId: string): boolean {
-    const index = this.bodies.indexOf(bodyId);
-    if (index >= 0) {
-      this.bodies.splice(index, 1);
-      return true;
-    }
-    return false;
+  setGuard(condition: string): void {
+    this.guard = condition;
   }
-
+  
   /**
-   * 後続アクションを追加
-   * @param actionId 追加する後続アクションのID
+   * アクション使用の情報をオブジェクトとして返す
    */
-  addSuccession(actionId: string): void {
-    if (!this.successions.includes(actionId)) {
-      this.successions.push(actionId);
-    }
-  }
-
-  /**
-   * 後続アクションを削除
-   * @param actionId 削除する後続アクションのID
-   * @returns 削除に成功した場合はtrue
-   */
-  removeSuccession(actionId: string): boolean {
-    const index = this.successions.indexOf(actionId);
-    if (index >= 0) {
-      this.successions.splice(index, 1);
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * 事前条件を追加
-   * @param conditionId 追加する事前条件のID
-   */
-  addPrecondition(conditionId: string): void {
-    if (!this.preconditions.includes(conditionId)) {
-      this.preconditions.push(conditionId);
-    }
-  }
-
-  /**
-   * 事前条件を削除
-   * @param conditionId 削除する事前条件のID
-   * @returns 削除に成功した場合はtrue
-   */
-  removePrecondition(conditionId: string): boolean {
-    const index = this.preconditions.indexOf(conditionId);
-    if (index >= 0) {
-      this.preconditions.splice(index, 1);
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * 事後条件を追加
-   * @param conditionId 追加する事後条件のID
-   */
-  addPostcondition(conditionId: string): void {
-    if (!this.postconditions.includes(conditionId)) {
-      this.postconditions.push(conditionId);
-    }
-  }
-
-  /**
-   * 事後条件を削除
-   * @param conditionId 削除する事後条件のID
-   * @returns 削除に成功した場合はtrue
-   */
-  removePostcondition(conditionId: string): boolean {
-    const index = this.postconditions.indexOf(conditionId);
-    if (index >= 0) {
-      this.postconditions.splice(index, 1);
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * JSON形式に変換
-   * @returns JSONオブジェクト
-   */
-  toJSON(): SysML2_ActionUsage {
+  override toObject() {
+    const baseObject = super.toJSON();
+    
+    // パラメータ値のマッピングをオブジェクトに変換
+    const parameterValuesObj: Record<string, any> = {};
+    this.parameterValues.forEach((value, paramId) => {
+      parameterValuesObj[paramId] = value;
+    });
+    
     return {
-      ...super.toJSON(),
-      __type: this.__type,
+      ...baseObject,
       actionDefinition: this.actionDefinition,
-      isReference: this.isReference,
-      parameters: [...this.parameters],
-      bodies: [...this.bodies],
-      guard: this.guard,
       successions: [...this.successions],
-      preconditions: [...this.preconditions],
-      postconditions: [...this.postconditions]
+      parameters: [...this.parameters],
+      parameterValues: parameterValuesObj,
+      guard: this.guard
     };
   }
-
+  
   /**
-   * JSONからActionUsageを復元
-   * @param json JSONオブジェクト
-   * @returns 復元されたActionUsage
+   * JSONデータからActionUsageインスタンスを作成する
+   * @param json JSON形式のデータ
+   * @returns 新しいActionUsageインスタンス
    */
-  static fromJSON(json: SysML2_ActionUsage): ActionUsage {
+  static fromJSON(json: any): ActionUsage {
+    if (!json || typeof json !== 'object') {
+      throw new Error('有効なJSONオブジェクトではありません');
+    }
+    
+    // ActionUsageインスタンスを作成
     const actionUsage = new ActionUsage({
-      id: json.id,
+      id: json.id || uuid(),
       name: json.name,
-      description: json.description,
+      ownerId: json.ownerId,
+      isAbstract: json.isAbstract,
       actionDefinition: json.actionDefinition,
-      isReference: json.isReference,
+      successions: Array.isArray(json.successions) ? [...json.successions] : [],
+      parameters: Array.isArray(json.parameters) ? [...json.parameters] : [],
+      parameterValues: json.parameterValues || {},
       guard: json.guard
     });
     
-    if (json.parameters) actionUsage.parameters = [...json.parameters];
-    if (json.bodies) actionUsage.bodies = [...json.bodies];
-    if (json.successions) actionUsage.successions = [...json.successions];
-    if (json.preconditions) actionUsage.preconditions = [...json.preconditions];
-    if (json.postconditions) actionUsage.postconditions = [...json.postconditions];
-
     return actionUsage;
+  }
+  
+  /**
+   * JSONシリアライズ用のメソッド
+   * @returns JSON形式のオブジェクト
+   */
+  toJSON(): any {
+    const obj = this.toObject();
+    return {
+      ...obj,
+      __type: 'ActionUsage'
+    };
   }
 }
