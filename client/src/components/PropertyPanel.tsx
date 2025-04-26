@@ -3,13 +3,16 @@ import { Element, Relationship } from '@/types/sysml';
 import { useAppStore } from '@/lib/store';
 
 export default function PropertyPanel() {
-  // Zustandのストアから最新の状態を常に取得するためのセレクター関数を使用
-  const selectedElement = useAppStore(state => state.selectedElement);
-  const selectedRelationship = useAppStore(state => state.selectedRelationship);
-  const updateElement = useAppStore(state => state.updateElement);
-  const updateRelationship = useAppStore(state => state.updateRelationship);
-  const setIsDirty = useAppStore(state => state.setIsDirty);
-  const currentDiagram = useAppStore(state => state.currentDiagram);
+  // 選択要素の状態を取得
+  const store = useAppStore();
+  
+  // 明示的に状態を分割して取得
+  const selectedElement = store.selectedElement;
+  const selectedRelationship = store.selectedRelationship;
+  const updateElement = store.updateElement;
+  const updateRelationship = store.updateRelationship;
+  const setIsDirty = store.setIsDirty;
+  const currentDiagram = store.currentDiagram;
   
   const [activeTab, setActiveTab] = useState<string>('properties');
   const [localElementData, setLocalElementData] = useState<Element | null>(null);
@@ -320,11 +323,27 @@ export default function PropertyPanel() {
         ) : activeTab === 'properties' ? (
           <div className="flex flex-col h-full items-center justify-center text-neutral-500">
             <p>Select an element or relationship to view and edit its properties</p>
-            {selectionStatus && (
-              <div className="mt-4 p-2 bg-neutral-100 rounded text-sm w-full max-w-md text-center">
-                {selectionStatus}
+            
+            {/* 選択状態を表示 */}
+            <div className="mt-4 p-2 bg-neutral-100 rounded text-sm w-full max-w-md text-center">
+              {selectionStatus || 'No selection status available'}
+            </div>
+            
+            {/* ストア内の選択要素情報を直接表示（デバッグ用） */}
+            <div className="mt-2 p-2 bg-blue-50 text-blue-700 rounded text-sm w-full max-w-md">
+              <p>Store debug info:</p>
+              <div>
+                <strong>Selected Element:</strong> {selectedElement ? `${selectedElement.id} (${selectedElement.name})` : 'none'}
               </div>
-            )}
+              <div>
+                <strong>Selected Relationship:</strong> {selectedRelationship ? `${selectedRelationship.id} (${selectedRelationship.type})` : 'none'}
+              </div>
+              <div>
+                <strong>Current Diagram:</strong> {currentDiagram ? `${currentDiagram.id} (${currentDiagram.elements.length} elements)` : 'none'}
+              </div>
+            </div>
+            
+            {/* エラーメッセージ表示 */}
             {errorMessage && (
               <div className="mt-2 p-2 bg-red-50 text-red-500 rounded text-sm w-full max-w-md">
                 {errorMessage}

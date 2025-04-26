@@ -1,76 +1,27 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import Palette from './Palette';
-import { initJointGraph } from '@/utils/joint';
-import * as joint from 'jointjs';
-import { Element, Relationship, ElementType, Diagram } from '@/types';
+import { Element, Relationship, Diagram } from '@/types/sysml';
 import { v4 as uuidv4 } from 'uuid';
 
 export default function DiagramEditor() {
   const { 
     currentDiagram, 
+    setCurrentDiagram,
     selectedElement,
-    selectedRelationship,
     setSelectedElement,
+    selectedRelationship,
     setSelectedRelationship,
-    updateElement,
-    updateRelationship,
-    addElement,
-    addRelationship,
-    removeElement,
-    removeRelationship,
-    setIsDirty,
-    currentView,
-    setCurrentDiagram
+    setIsDirty
   } = useAppStore();
   
   // エラーメッセージ用の状態
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
-  const containerRef = useRef<HTMLDivElement>(null);
-  const graphRef = useRef<any>(null);
-  // マップを使用して要素IDとJointJS要素間のマッピングを維持
-  const elementsMapRef = useRef<Map<string, joint.dia.Element>>(new Map());
-  const relationshipsMapRef = useRef<Map<string, joint.dia.Link>>(new Map());
-  
-  // ダイアグラム要素の選択ハンドラ
-  const handleElementSelect = useCallback((elementView: any) => {
-    const cellModel = elementView.model;
-    const id = cellModel.id.toString();
-    
-    // 現在のダイアグラムから選択された要素を検索
-    if (currentDiagram) {
-      const element = currentDiagram.elements.find(e => e.id === id);
-      if (element) {
-        console.log('Element selected:', element.id, element.name);
-        setSelectedElement(element);
-        setSelectedRelationship(null); // 要素が選択されたらリレーションシップの選択を解除
-      }
-    }
-  }, [currentDiagram, setSelectedElement, setSelectedRelationship]);
-  
-  // リレーションシップの選択ハンドラ
-  const handleLinkSelect = useCallback((linkView: any) => {
-    const cellModel = linkView.model;
-    const id = cellModel.id.toString();
-    
-    // 現在のダイアグラムから選択されたリレーションシップを検索
-    if (currentDiagram) {
-      const relationship = currentDiagram.relationships.find(r => r.id === id);
-      if (relationship) {
-        setSelectedRelationship(relationship);
-        setSelectedElement(null); // リレーションシップが選択されたら要素の選択を解除
-      }
-    }
-  }, [currentDiagram, setSelectedElement, setSelectedRelationship]);
-  
-  // JointJSグラフの初期化
+  // シンプルな初期化（テスト用）
   useEffect(() => {
-    if (containerRef.current && !graphRef.current) {
-      const { graph, paper } = initJointGraph(containerRef.current);
-      graphRef.current = { graph, paper };
-      
-      // サンプルダイアグラムの作成（初期データ）
+    // 新しいダイアグラムを作成
+    if (!currentDiagram) {
       const initialDiagram: Diagram = {
         id: uuidv4(),
         name: 'Main Diagram',
@@ -79,579 +30,113 @@ export default function DiagramEditor() {
         relationships: []
       };
       
-      // ストアにダイアグラムを設定（必ず最初に設定）
+      // ストアにダイアグラムを設定
       setCurrentDiagram(initialDiagram);
       console.log('初期ダイアグラムをストアに設定:', initialDiagram.id);
-      
-      // 要素選択イベントリスナー
-      paper.on('element:pointerclick', (elementView: any) => {
-        const cellModel = elementView.model;
-        const id = cellModel.id.toString();
-        console.log('DEBUG - element:pointerclick - selected ID:', id);
-        
-        // 直接ストアから要素を検索（currentDiagramに依存しない）
-        const store = useAppStore.getState();
-        
-        // 既存の要素かどうかを確認
-        if (store.currentDiagram?.elements) {
-          const element = store.currentDiagram.elements.find(e => e.id === id);
-          if (element) {
-            console.log('Element selected:', element.id, element.name);
-            // 明示的にストアを更新
-            useAppStore.getState().setSelectedElement(element);
-            useAppStore.getState().setSelectedRelationship(null);
-            
-            // ストアの状態を確認
-            console.log('Store updated - selectedElement:', useAppStore.getState().selectedElement?.id);
-            console.log('Store updated - selectedElement name:', useAppStore.getState().selectedElement?.name);
-          } else {
-            // 新しい要素として追加
-            const newElement: Element = {
-              id,
-              name: cellModel.attr('label/text') || 'New Element',
-              type: cellModel.get('type') || 'block',
-              stereotype: 'block',
-              position: cellModel.position(),
-              size: cellModel.size()
-            };
-            
-            // 要素を追加
-            useAppStore.getState().addElement(newElement);
-            useAppStore.getState().setSelectedElement(newElement);
-            useAppStore.getState().setSelectedRelationship(null);
-            console.log('New element created and selected:', newElement.id, newElement.name);
-            console.log('Store check after new element:', useAppStore.getState().selectedElement?.id);
-          }
-        } else {
-          // エラー表示
-          setErrorMessage('currentDiagram が未初期化です。ページを更新してください。');
-          console.error('currentDiagram is null or has no elements array');
-        }
-      });
-      
-      // リンク選択イベントリスナー
-      paper.on('link:pointerclick', (linkView: any) => {
-        const cellModel = linkView.model;
-        const id = cellModel.id.toString();
-        console.log('DEBUG - link:pointerclick - selected ID:', id);
-        
-        // 直接ストアから関連を検索（currentDiagramに依存しない）
-        const store = useAppStore.getState();
-        
-        if (store.currentDiagram?.relationships) {
-          const relationship = store.currentDiagram.relationships.find(r => r.id === id);
-          if (relationship) {
-            console.log('Relationship selected:', relationship.id, relationship.type);
-            // 明示的にストアを更新
-            useAppStore.getState().setSelectedRelationship(relationship);
-            useAppStore.getState().setSelectedElement(null);
-            
-            // ストアの状態を確認
-            console.log('Store updated - selectedRelationship:', useAppStore.getState().selectedRelationship?.id);
-            console.log('Store updated - selectedRelationship type:', useAppStore.getState().selectedRelationship?.type);
-          } else {
-            // 新しい関連として追加
-            const sourceId = cellModel.source().id;
-            const targetId = cellModel.target().id;
-            
-            const newRelationship: Relationship = {
-              id,
-              type: 'association',
-              sourceId,
-              targetId,
-              name: 'New Relationship'
-            };
-            
-            // 関連を追加
-            useAppStore.getState().addRelationship(newRelationship);
-            useAppStore.getState().setSelectedRelationship(newRelationship);
-            useAppStore.getState().setSelectedElement(null);
-            console.log('New relationship created and selected:', newRelationship.id, newRelationship.type);
-            console.log('Store check after new relationship:', useAppStore.getState().selectedRelationship?.id);
-          }
-        } else {
-          // エラー表示
-          setErrorMessage('currentDiagram が未初期化です。ページを更新してください。');
-          console.error('currentDiagram is null or has no relationships array');
-        }
-      });
-      
-      // 任意のセル選択イベントリスナー（要素とリンクの両方をキャッチ）
-      paper.on('cell:pointerclick', (cellView: any) => {
-        const cellModel = cellView.model;
-        const id = cellModel.id.toString();
-        
-        console.log('DEBUG - cell:pointerclick - selected ID:', id);
-        
-        // セルの種類によって処理を分岐
-        if (cellModel.isElement()) {
-          // 要素の場合 - element:pointerclickでも処理されるが、確実に捕捉するために実装
-          const store = useAppStore.getState();
-          if (store.currentDiagram?.elements) {
-            const element = store.currentDiagram.elements.find(e => e.id === id);
-            if (element) {
-              console.log('Cell clicked (element):', element.id, element.name);
-              // 明示的にストアを更新
-              useAppStore.getState().setSelectedElement(element);
-              useAppStore.getState().setSelectedRelationship(null);
-              
-              // ストアの状態を確認
-              console.log('Cell:pointerclick Store updated - selectedElement:', useAppStore.getState().selectedElement?.id);
-            } else {
-              // 新しい要素として扱う
-              const newElement: Element = {
-                id,
-                name: cellModel.attr('label/text') || 'New Element',
-                type: cellModel.get('type') || 'block',
-                stereotype: 'block',
-                position: cellModel.position(),
-                size: cellModel.size()
-              };
-              
-              // 明示的にストアを更新
-              useAppStore.getState().addElement(newElement);
-              useAppStore.getState().setSelectedElement(newElement);
-              useAppStore.getState().setSelectedRelationship(null);
-              console.log('Cell:pointerclick New element created and selected:', newElement.id);
-            }
-          }
-        } else if (cellModel.isLink()) {
-          // リンク（リレーションシップ）の場合 - link:pointerclickでも処理されるが、確実に捕捉するために実装
-          const store = useAppStore.getState();
-          if (store.currentDiagram?.relationships) {
-            const relationship = store.currentDiagram.relationships.find(r => r.id === id);
-            if (relationship) {
-              console.log('Cell clicked (relationship):', relationship.id, relationship.type);
-              // 明示的にストアを更新
-              useAppStore.getState().setSelectedRelationship(relationship);
-              useAppStore.getState().setSelectedElement(null);
-              
-              // ストアの状態を確認
-              console.log('Cell:pointerclick Store updated - selectedRelationship:', useAppStore.getState().selectedRelationship?.id);
-            } else {
-              // 新しい関連として扱う
-              const sourceId = cellModel.source().id;
-              const targetId = cellModel.target().id;
-              
-              const newRelationship: Relationship = {
-                id,
-                type: 'association',
-                sourceId,
-                targetId,
-                name: 'New Relationship'
-              };
-              
-              // 明示的にストアを更新
-              useAppStore.getState().addRelationship(newRelationship);
-              useAppStore.getState().setSelectedRelationship(newRelationship);
-              useAppStore.getState().setSelectedElement(null);
-              console.log('Cell:pointerclick New relationship created and selected:', newRelationship.id);
-            }
-          }
-        }
-      });
-      
-      // ダブルクリックイベントも追加（もう一つの確実な選択方法として）
-      paper.on('cell:pointerdblclick', (cellView: any) => {
-        const cellModel = cellView.model;
-        const id = cellModel.id.toString();
-        
-        console.log('DEBUG - cell:pointerdblclick - selected ID:', id);
-        
-        // double-clickでも同様の選択処理を行う（冗長だが確実性のため）
-        if (cellModel.isElement()) {
-          const store = useAppStore.getState();
-          if (store.currentDiagram?.elements) {
-            const element = store.currentDiagram.elements.find(e => e.id === id);
-            if (element) {
-              console.log('Cell double-clicked (element):', element.id, element.name);
-              // 明示的にストアを更新
-              useAppStore.getState().setSelectedElement(element);
-              useAppStore.getState().setSelectedRelationship(null);
-              // プロパティタブに表示されることを検証するログ
-              console.log('Double-click store check - selectedElement:', useAppStore.getState().selectedElement?.id);
-            }
-          }
-        } else if (cellModel.isLink()) {
-          const store = useAppStore.getState();
-          if (store.currentDiagram?.relationships) {
-            const relationship = store.currentDiagram.relationships.find(r => r.id === id);
-            if (relationship) {
-              console.log('Cell double-clicked (relationship):', relationship.id, relationship.type);
-              // 明示的にストアを更新
-              useAppStore.getState().setSelectedRelationship(relationship);
-              useAppStore.getState().setSelectedElement(null);
-              // プロパティタブに表示されることを検証するログ
-              console.log('Double-click store check - selectedRelationship:', useAppStore.getState().selectedRelationship?.id);
-            }
-          }
-        }
-      });
-      
-      // 要素移動イベントリスナー
-      paper.on('element:pointerup', (elementView: any) => {
-        const cellModel = elementView.model;
-        const id = cellModel.id.toString();
-        const position = cellModel.position();
-        
-        // 位置情報でモデルを更新
-        if (currentDiagram) {
-          updateElement(id, { position: { x: position.x, y: position.y } });
-          setIsDirty(true);
-        }
-      });
-      
-      // キャンバス空白クリックで選択解除
-      paper.on('blank:pointerclick', () => {
-        setSelectedElement(null);
-        setSelectedRelationship(null);
-      });
     }
-    
-    return () => {
-      if (graphRef.current) {
-        const { paper } = graphRef.current;
-        // イベントリスナー削除
-        paper.off('element:pointerclick');
-        paper.off('link:pointerclick');
-        paper.off('cell:pointerclick'); // 追加したイベントリスナーも削除
-        paper.off('cell:pointerdblclick'); // ダブルクリックイベントリスナーも削除
-        paper.off('element:pointerup');
-        paper.off('blank:pointerclick');
-      }
-    };
-  }, [handleElementSelect, handleLinkSelect, setSelectedElement, setSelectedRelationship, setCurrentDiagram, addElement, addRelationship, updateElement, setIsDirty, setErrorMessage]);
+  }, [currentDiagram, setCurrentDiagram]);
   
-  // ダイアグラムデータが変更された時にグラフを更新
+  // サンプルデータ作成（初回表示時）
   useEffect(() => {
-    if (!graphRef.current || !currentDiagram) return;
-    
-    const { graph } = graphRef.current;
-    
-    // グラフをクリア（マッピングも全て削除）
-    graph.clear();
-    elementsMapRef.current.clear();
-    relationshipsMapRef.current.clear();
-    
-    // 要素の描画
-    currentDiagram.elements.forEach(element => {
-      // 位置情報がない場合はデフォルト値を設定
-      const position = element.position || { x: 100, y: 100 };
+    if (currentDiagram && currentDiagram.elements.length === 0) {
+      console.log('Creating sample diagram elements');
       
-      // 要素を作成
-      const jointElement = createBlockElement(
-        graph,
-        element.name,
-        position.x,
-        position.y,
-        element.type,
-        element.stereotype || 'block'
-      );
-      
-      // 作成された要素に実際のIDを設定
-      jointElement.id = element.id;
-      
-      // 要素をマップに保存
-      elementsMapRef.current.set(element.id, jointElement);
-    });
-    
-    // リレーションシップの描画
-    currentDiagram.relationships.forEach(relationship => {
-      const sourceElement = elementsMapRef.current.get(relationship.sourceId);
-      const targetElement = elementsMapRef.current.get(relationship.targetId);
-      
-      if (sourceElement && targetElement) {
-        const link = createRelationship(
-          graph,
-          sourceElement,
-          targetElement,
-          relationship.type,
-          relationship.name || ''
-        );
+      try {
+        // 単純なブロック要素をいくつか追加
+        const id1 = crypto.randomUUID();
+        const id2 = crypto.randomUUID();
+        const id3 = crypto.randomUUID();
         
-        // 作成されたリンクに実際のIDを設定
-        if (link) {
-          link.id = relationship.id;
-          relationshipsMapRef.current.set(relationship.id, link);
-        }
+        // システム要素をストアに追加
+        const systemElement: Element = {
+          id: id1,
+          name: 'System',
+          type: 'block',
+          stereotype: 'block',
+          position: { x: 200, y: 100 },
+          size: { width: 120, height: 80 }
+        };
+        
+        // サブシステム要素をストアに追加
+        const subsystemElement: Element = {
+          id: id2,
+          name: 'Subsystem',
+          type: 'block',
+          stereotype: 'block',
+          position: { x: 100, y: 250 },
+          size: { width: 120, height: 80 }
+        };
+        
+        // コンポーネント要素をストアに追加
+        const componentElement: Element = {
+          id: id3,
+          name: 'Component',
+          type: 'block',
+          stereotype: 'block',
+          position: { x: 300, y: 250 },
+          size: { width: 120, height: 80 }
+        };
+        
+        // 新しいダイアグラムをコピーし、要素を追加
+        const updatedDiagram = {
+          ...currentDiagram,
+          elements: [
+            ...currentDiagram.elements,
+            systemElement,
+            subsystemElement,
+            componentElement
+          ],
+          relationships: [
+            ...currentDiagram.relationships,
+            {
+              id: crypto.randomUUID(),
+              type: 'composition',
+              sourceId: id1,
+              targetId: id2,
+              name: 'contains'
+            },
+            {
+              id: crypto.randomUUID(),
+              type: 'aggregation',
+              sourceId: id1,
+              targetId: id3,
+              name: 'has'
+            }
+          ]
+        };
+        
+        // 更新されたダイアグラムをストアに設定
+        setCurrentDiagram(updatedDiagram);
+        
+        console.log('Sample data added to diagram');
+        
+        // 変更フラグを設定
+        setIsDirty(true);
+        
+        // テスト用に最初の要素を選択
+        setSelectedElement(systemElement);
+      } catch (error) {
+        console.error('Error creating sample diagram:', error);
+        setErrorMessage('サンプル図の作成に失敗しました');
       }
-    });
-    
-  }, [currentDiagram]);
-  
-  // 選択した要素の変更を監視して、JointJS要素を更新
-  useEffect(() => {
-    if (!graphRef.current || !selectedElement) return;
-    
-    // 対応するJointJS要素を取得
-    const jointElement = elementsMapRef.current.get(selectedElement.id);
-    if (!jointElement) return;
-    
-    // 要素の名前とタイプを更新
-    jointElement.attr({
-      label: {
-        text: selectedElement.name
-      },
-      stereotype: {
-        text: `«${selectedElement.stereotype || selectedElement.type}»`
-      }
-    });
-    
-    // グラフに変更を適用
-    const { graph } = graphRef.current;
-    graph.findViewByModel(jointElement)?.update();
-    
-  }, [selectedElement]);
-  
-  // 選択したリレーションシップの変更を監視して、JointJS要素を更新
-  useEffect(() => {
-    if (!graphRef.current || !selectedRelationship) return;
-    
-    // 対応するJointJS要素を取得
-    const jointLink = relationshipsMapRef.current.get(selectedRelationship.id);
-    if (!jointLink) return;
-    
-    // リンクのラベルを更新
-    jointLink.labels([{
-      position: 0.5,
-      attrs: {
-        text: {
-          text: selectedRelationship.name || '',
-          fill: '#616161',
-          fontSize: 12,
-          fontFamily: 'Roboto',
-          textAnchor: 'middle'
-        }
-      }
-    }]);
-    
-    // グラフに変更を適用
-    const { graph } = graphRef.current;
-    graph.findViewByModel(jointLink)?.update();
-    
-  }, [selectedRelationship]);
-  
-  // 新しい要素追加ユーティリティ
-  const addNewElement = useCallback((type: ElementType, x: number, y: number) => {
-    if (!graphRef.current || !currentDiagram) return;
-    
-    const id = uuidv4();
-    const name = `New ${type}`;
-    
-    // ストアに要素を追加
-    const newElement: Element = {
-      id,
-      name,
-      type,
-      stereotype: type,
-      position: { x, y },
-      size: { width: 120, height: 80 }
-    };
-    
-    addElement(newElement);
-    setIsDirty(true);
-    
-    // 要素を選択
-    setSelectedElement(newElement);
-  }, [currentDiagram, addElement, setSelectedElement, setIsDirty]);
-  
-  // サンプルダイアグラム作成（初回表示時）
-  useEffect(() => {
-    if (graphRef.current && (!currentDiagram || currentDiagram.elements.length === 0)) {
-      const { graph } = graphRef.current;
-      
-      // This would normally come from an API or store
-      // サンプルダイアグラム設定
-      
-      // システムブロック作成
-      const system = createBlockElement(graph, 'System', 200, 100, 'block', 'block');
-      
-      // サブシステムブロック作成
-      const subsystem = createBlockElement(graph, 'Subsystem', 100, 250, 'block', 'block');
-      
-      // コンポーネントブロック作成
-      const component = createBlockElement(graph, 'Component', 300, 250, 'block', 'block');
-      
-      // コンポジション関係作成
-      createRelationship(graph, system, subsystem, 'composition', 'contains');
-      
-      // 集約関係作成
-      createRelationship(graph, system, component, 'aggregation', 'has');
     }
-  }, [graphRef.current, currentDiagram]);
+  }, [currentDiagram, setCurrentDiagram, setIsDirty, setSelectedElement]);
   
-  // Helper function to create a block element
-  const createBlockElement = (
-    graph: any, 
-    name: string, 
-    x: number, 
-    y: number, 
-    elementType: ElementType = 'block',
-    stereotype: string = 'block'
-  ) => {
-    const block = new joint.shapes.standard.Rectangle({
-      position: { x, y },
-      size: { width: 120, height: 80 },
-      attrs: {
-        body: {
-          fill: '#ffffff',
-          stroke: '#616161',
-          strokeWidth: 1.5,
-          rx: 4,
-          ry: 4
-        },
-        label: {
-          text: name,
-          fill: '#212121',
-          fontSize: 14,
-          fontWeight: 500,
-          fontFamily: 'Roboto',
-          textVerticalAnchor: 'middle',
-          textAnchor: 'middle',
-          refY: 0.6
-        }
-      }
-    });
-    
-    // Type情報を設定
-    block.set('type', elementType);
-    
-    // ステレオタイプテキストを追加
-    block.attr({
-      stereotype: {
-        text: `«${stereotype}»`,
-        fill: '#212121',
-        fontSize: 14,
-        fontFamily: 'Roboto',
-        textVerticalAnchor: 'middle',
-        textAnchor: 'middle',
-        refY: 0.3
-      }
-    });
-    
-    graph.addCell(block);
-    return block;
+  // テスト用の要素選択ハンドラー
+  const handleElementClick = (element: Element) => {
+    console.log('Element clicked:', element.id, element.name);
+    setSelectedElement(element);
+    setSelectedRelationship(null);
   };
   
-  // Helper function to create a relationship between elements
-  const createRelationship = (graph: any, source: any, target: any, type: string, label: string) => {
-    let link;
-    
-    if (type === 'composition') {
-      link = new joint.shapes.standard.Link({
-        source: { id: source.id },
-        target: { id: target.id },
-        attrs: {
-          line: {
-            stroke: '#616161',
-            strokeWidth: 1.5,
-            targetMarker: {
-              type: 'path',
-              d: 'M 10 0 L 0 5 L 10 10 z',
-              fill: '#616161'
-            }
-          }
-        },
-        labels: [
-          {
-            position: 0.5,
-            attrs: {
-              text: {
-                text: label,
-                fill: '#616161',
-                fontSize: 12,
-                fontFamily: 'Roboto',
-                textAnchor: 'middle'
-              }
-            }
-          }
-        ]
-      });
-      
-      // Add the filled circle to represent composition
-      const sourcePoint = source.getBBox().bottomMiddle();
-      link.source(source);
-      link.target(target);
-      
-      // Create a circle at the start of the link
-      const circle = new joint.shapes.standard.Circle({
-        position: { 
-          x: sourcePoint.x - 6, 
-          y: sourcePoint.y - 6 
-        },
-        size: { width: 12, height: 12 },
-        attrs: {
-          body: {
-            fill: '#212121',
-            stroke: 'none'
-          }
-        },
-        z: 2 // Ensure it's above the link
-      });
-      
-      graph.addCell(circle);
-    } else if (type === 'aggregation') {
-      link = new joint.shapes.standard.Link({
-        source: { id: source.id },
-        target: { id: target.id },
-        attrs: {
-          line: {
-            stroke: '#616161',
-            strokeWidth: 1.5,
-            targetMarker: {
-              type: 'path',
-              d: 'M 10 0 L 0 5 L 10 10 z',
-              fill: '#616161'
-            }
-          }
-        },
-        labels: [
-          {
-            position: 0.5,
-            attrs: {
-              text: {
-                text: label,
-                fill: '#616161',
-                fontSize: 12,
-                fontFamily: 'Roboto',
-                textAnchor: 'middle'
-              }
-            }
-          }
-        ]
-      });
-      
-      // Add a diamond to represent aggregation
-      const sourcePoint = source.getBBox().bottomMiddle();
-      
-      // Create a diamond at the start of the link
-      const diamond = new joint.shapes.standard.Polygon({
-        position: { 
-          x: sourcePoint.x - 12, 
-          y: sourcePoint.y - 12 
-        },
-        size: { width: 24, height: 24 },
-        attrs: {
-          body: {
-            fill: '#ffffff',
-            stroke: '#616161',
-            strokeWidth: 1.5,
-            points: '12,0 24,12 12,24 0,12'
-          }
-        },
-        z: 2 // Ensure it's above the link
-      });
-      
-      graph.addCell(diamond);
-    }
-    
-    if (link) {
-      graph.addCell(link);
-    }
-    
-    return link;
+  // テスト用の関係選択ハンドラー
+  const handleRelationshipClick = (relationship: Relationship) => {
+    console.log('Relationship clicked:', relationship.id, relationship.type);
+    setSelectedRelationship(relationship);
+    setSelectedElement(null);
   };
   
+  // シンプルな表示用のコンポーネント（DiagramEditorの代わりに使用）
   return (
     <div className="flex-1 bg-white p-4 overflow-auto relative">
       {errorMessage && (
@@ -665,11 +150,72 @@ export default function DiagramEditor() {
           </button>
         </div>
       )}
-      <div 
-        ref={containerRef} 
-        className="border border-neutral-300 rounded-lg bg-neutral-50 h-full flex items-center justify-center relative"
-      >
-        {/* The JointJS paper will be rendered here */}
+      
+      <div className="border border-neutral-300 rounded-lg bg-neutral-50 h-full flex flex-col p-4 relative">
+        <h2 className="text-xl font-bold mb-4">テスト用ダイアグラム（要素選択テスト）</h2>
+        
+        {/* デバッグ情報（選択中の要素） */}
+        <div className="mb-4 p-2 bg-blue-50 border border-blue-200 rounded-md">
+          <h3 className="font-medium text-blue-800">選択状態:</h3>
+          <p className="text-sm">
+            {selectedElement 
+              ? `要素「${selectedElement.name}」を選択中 (ID: ${selectedElement.id})` 
+              : selectedRelationship 
+                ? `関係「${selectedRelationship.type}」を選択中 (ID: ${selectedRelationship.id})` 
+                : '何も選択されていません'}
+          </p>
+        </div>
+        
+        {/* 要素一覧（クリックで選択） */}
+        <div className="overflow-auto flex-1">
+          <h3 className="font-medium mb-2">要素一覧（クリックで選択）:</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {currentDiagram?.elements.map(element => (
+              <div 
+                key={element.id}
+                className={`p-3 border rounded-md cursor-pointer transition-colors ${
+                  selectedElement?.id === element.id 
+                    ? 'bg-blue-100 border-blue-400' 
+                    : 'bg-white border-gray-300 hover:bg-gray-50'
+                }`}
+                onClick={() => handleElementClick(element)}
+              >
+                <p className="text-xs text-gray-500">{`«${element.stereotype || 'block'}»`}</p>
+                <p className="font-medium">{element.name}</p>
+                <p className="text-xs text-gray-500">ID: {element.id.substring(0, 8)}...</p>
+              </div>
+            ))}
+          </div>
+          
+          <h3 className="font-medium mb-2 mt-4">関係一覧（クリックで選択）:</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {currentDiagram?.relationships.map(relationship => {
+              // 関連する要素の名前を取得
+              const sourceElement = currentDiagram.elements.find(e => e.id === relationship.sourceId);
+              const targetElement = currentDiagram.elements.find(e => e.id === relationship.targetId);
+              
+              return (
+                <div 
+                  key={relationship.id}
+                  className={`p-3 border rounded-md cursor-pointer transition-colors ${
+                    selectedRelationship?.id === relationship.id 
+                      ? 'bg-green-100 border-green-400' 
+                      : 'bg-white border-gray-300 hover:bg-gray-50'
+                  }`}
+                  onClick={() => handleRelationshipClick(relationship)}
+                >
+                  <p className="text-xs text-gray-500">{`«${relationship.type}»`}</p>
+                  <p className="font-medium">{relationship.name || 'Unnamed'}</p>
+                  <p className="text-xs text-gray-600">
+                    {sourceElement?.name || 'Unknown'} → {targetElement?.name || 'Unknown'}
+                  </p>
+                  <p className="text-xs text-gray-500">ID: {relationship.id.substring(0, 8)}...</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        
         <Palette />
       </div>
     </div>
