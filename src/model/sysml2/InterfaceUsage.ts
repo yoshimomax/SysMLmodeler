@@ -1,39 +1,46 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Feature } from '../kerml/Feature';
-import { Definition } from './Definition';
-import { SysML2_InterfaceDefinition } from './interfaces';
+import { Usage } from './Usage';
+import { SysML2_InterfaceUsage } from './interfaces';
 
 /**
- * SysML v2のInterfaceDefinitionクラス
- * システム間のインターフェースを定義する
+ * SysML v2のInterfaceUsageクラス
+ * システム間のインターフェースの使用を表す
  * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.8に準拠
  */
-export class InterfaceDefinition extends Definition {
+export class InterfaceUsage extends Usage {
+  /** 参照するInterfaceDefinitionのID */
+  interfaceDefinitionId?: string;
+  
   /** 終端特性のIDリスト */
   endFeatures: string[];
   
-  /** このInterfaceDefinitionを使用するInterfaceUsageのIDリスト */
-  interfaceUsages: string[];
-  
   /**
-   * InterfaceDefinition コンストラクタ
+   * InterfaceUsage コンストラクタ
    * @param params 初期化パラメータ
    */
   constructor(params: {
     id?: string;
     ownerId?: string;
     name?: string;
-    isAbstract?: boolean;
+    definitionId?: string;
+    interfaceDefinitionId?: string;
     isVariation?: boolean;
     stereotype?: string;
-    ownedFeatures?: string[] | Feature[];
+    nestedUsages?: string[] | Usage[];
     endFeatures?: string[];
-    interfaceUsages?: string[];
   }) {
-    super(params);
+    super({
+      id: params.id || uuidv4(),
+      ownerId: params.ownerId,
+      name: params.name,
+      definitionId: params.definitionId || params.interfaceDefinitionId,
+      isVariation: params.isVariation,
+      stereotype: params.stereotype,
+      nestedUsages: params.nestedUsages
+    });
     
+    this.interfaceDefinitionId = params.interfaceDefinitionId || params.definitionId;
     this.endFeatures = params.endFeatures || [];
-    this.interfaceUsages = params.interfaceUsages || [];
   }
   
   /**
@@ -61,44 +68,34 @@ export class InterfaceDefinition extends Definition {
   }
   
   /**
-   * InterfaceUsageへの参照を追加する
-   * @param interfaceUsageId 追加するInterfaceUsageのID
-   */
-  addInterfaceUsageReference(interfaceUsageId: string): void {
-    if (!this.interfaceUsages.includes(interfaceUsageId)) {
-      this.interfaceUsages.push(interfaceUsageId);
-    }
-  }
-  
-  /**
    * JSONオブジェクトに変換する
-   * @returns SysML2_InterfaceDefinition形式のJSONオブジェクト
+   * @returns SysML2_InterfaceUsage形式のJSONオブジェクト
    */
-  toJSON(): SysML2_InterfaceDefinition {
+  toJSON(): SysML2_InterfaceUsage {
     return {
       ...super.toJSON(),
-      __type: 'InterfaceDefinition',
-      endFeatures: this.endFeatures,
-      interfaceUsages: this.interfaceUsages
+      __type: 'InterfaceUsage',
+      interfaceDefinition: this.interfaceDefinitionId,
+      endFeatures: this.endFeatures
     };
   }
   
   /**
-   * JSONオブジェクトからInterfaceDefinitionインスタンスを生成する
+   * JSONオブジェクトからInterfaceUsageインスタンスを生成する
    * @param json 変換元のJSONオブジェクト
-   * @returns InterfaceDefinitionインスタンス
+   * @returns InterfaceUsageインスタンス
    */
-  static fromJSON(json: SysML2_InterfaceDefinition): InterfaceDefinition {
-    return new InterfaceDefinition({
+  static fromJSON(json: SysML2_InterfaceUsage): InterfaceUsage {
+    return new InterfaceUsage({
       id: json.id,
       ownerId: json.ownerId,
       name: json.name,
-      isAbstract: json.isAbstract,
+      definitionId: json.definition,
+      interfaceDefinitionId: json.interfaceDefinition,
       isVariation: json.isVariation,
       stereotype: json.stereotype,
-      ownedFeatures: json.ownedFeatures,
-      endFeatures: json.endFeatures,
-      interfaceUsages: json.interfaceUsages
+      nestedUsages: json.nestedUsages,
+      endFeatures: json.endFeatures
     });
   }
   
@@ -110,8 +107,8 @@ export class InterfaceDefinition extends Definition {
     return {
       id: this.id,
       name: this.name,
-      stereotype: this.stereotype || 'interface_def',
-      isAbstract: this.isAbstract,
+      stereotype: this.stereotype || 'interface',
+      definitionId: this.interfaceDefinitionId,
       endFeatures: this.endFeatures
     };
   }

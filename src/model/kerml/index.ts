@@ -33,6 +33,13 @@ export * from './Intersect';
 export * from './Union';
 export * from './Difference';
 
+// Values and metadata
+export * from './FeatureValue';
+export * from './MetadataFeature';
+
+// Organization
+export * from './Package';
+
 // Multiplicity
 export * from './MultiplicityRange';
 

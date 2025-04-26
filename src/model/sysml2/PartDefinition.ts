@@ -1,123 +1,183 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Type } from '../kerml/Type';
 import { Feature } from '../kerml/Feature';
-import { AttributeDefinition } from './AttributeDefinition';
-import { PortDefinition } from './PortDefinition';
-import { BlockDefinition } from './BlockDefinition';
+import { Definition } from './Definition';
+import { SysML2_PartDefinition } from './interfaces';
 
 /**
- * SysML v2 PartDefinition クラス
- * SysML v2 言語仕様のパート定義を表現する
- * @see https://www.omg.org/spec/SysML/2.0/Beta1
+ * SysML v2のPartDefinitionクラス
+ * システム構造部品の定義を表す
+ * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.7に準拠
  */
-export class PartDefinition extends Type {
-  /** パートが使用する（型として参照する）ブロック定義 */
-  blockType?: BlockDefinition;
+export class PartDefinition extends Definition {
+  /** 人間表現かどうか */
+  isHuman: boolean;
   
-  /** このパートが持つ属性定義のリスト */
-  attributes: AttributeDefinition[] = [];
+  /** このPartDefinitionを使用するPartUsageのIDリスト */
+  partUsages: string[];
   
-  /** このパートが持つポート定義のリスト */
-  ports: PortDefinition[] = [];
+  /** 所有するインターフェース定義のIDリスト */
+  interfaceDefinitions: string[];
   
-  /** パートの配置位置（レイアウト情報） */
-  position?: { x: number; y: number };
+  /** 所有する接続定義のIDリスト */
+  connectionDefinitions: string[];
   
-  /** パートのサイズ（レイアウト情報） */
-  size?: { width: number; height: number };
+  /** 所有するフロー定義のIDリスト */
+  flowDefinitions: string[];
   
-  /** パートが抽象かどうか */
-  isAbstract: boolean = false;
+  /** 所有する状態定義のIDリスト */
+  stateDefinitions: string[];
   
-  /** パートの多重度（数量、インスタンス数） */
-  multiplicity?: string;
+  /** 所有する制約定義のIDリスト */
+  constraintDefinitions: string[];
+  
+  /** 所有する要求定義のIDリスト */
+  requirementDefinitions: string[];
+  
+  /** 所有する計算定義のIDリスト */
+  calculationDefinitions: string[];
+  
+  /** 所有するメタデータ定義のIDリスト */
+  metadataDefinitions: string[];
+  
+  /** ポートのIDリスト */
+  ports: string[];
   
   /**
    * PartDefinition コンストラクタ
-   * @param name パート名
-   * @param blockType このパートの型となるブロック定義（オプション）
-   * @param attributes 属性のリスト（オプション）
-   * @param ports ポートのリスト（オプション）
-   * @param id 明示的に指定する場合のID（省略時は自動生成）
+   * @param params 初期化パラメータ
    */
-  constructor(
-    name: string,
-    blockType?: BlockDefinition,
-    attributes: AttributeDefinition[] = [],
-    ports: PortDefinition[] = [],
-    id?: string
-  ) {
-    // Typeクラスのコンストラクタ呼び出し
-    super(name, [], id);
+  constructor(params: {
+    id?: string;
+    ownerId?: string;
+    name?: string;
+    isAbstract?: boolean;
+    isVariation?: boolean;
+    stereotype?: string;
+    ownedFeatures?: string[] | Feature[];
+    isHuman?: boolean;
+    partUsages?: string[];
+    interfaceDefinitions?: string[];
+    connectionDefinitions?: string[];
+    flowDefinitions?: string[];
+    stateDefinitions?: string[];
+    constraintDefinitions?: string[];
+    requirementDefinitions?: string[];
+    calculationDefinitions?: string[];
+    metadataDefinitions?: string[];
+    ports?: string[];
+  }) {
+    super(params);
     
-    this.blockType = blockType;
-    this.attributes = attributes;
-    this.ports = ports;
-    
-    // 属性とポートの親設定
-    this.attributes.forEach(attr => {
-      attr.ownerPart = this;
-    });
-    
-    this.ports.forEach(port => {
-      port.ownerPart = this;
-    });
+    this.isHuman = params.isHuman ?? false;
+    this.partUsages = params.partUsages || [];
+    this.interfaceDefinitions = params.interfaceDefinitions || [];
+    this.connectionDefinitions = params.connectionDefinitions || [];
+    this.flowDefinitions = params.flowDefinitions || [];
+    this.stateDefinitions = params.stateDefinitions || [];
+    this.constraintDefinitions = params.constraintDefinitions || [];
+    this.requirementDefinitions = params.requirementDefinitions || [];
+    this.calculationDefinitions = params.calculationDefinitions || [];
+    this.metadataDefinitions = params.metadataDefinitions || [];
+    this.ports = params.ports || [];
   }
   
   /**
-   * 属性を追加する
-   * @param attribute 追加する属性
+   * PartUsageへの参照を追加する
+   * @param partUsageId 追加するPartUsageのID
    */
-  addAttribute(attribute: AttributeDefinition): void {
-    attribute.ownerPart = this;
-    this.attributes.push(attribute);
+  addPartUsageReference(partUsageId: string): void {
+    if (!this.partUsages.includes(partUsageId)) {
+      this.partUsages.push(partUsageId);
+    }
   }
   
   /**
    * ポートを追加する
-   * @param port 追加するポート
+   * @param portId 追加するポートのID
    */
-  addPort(port: PortDefinition): void {
-    port.ownerPart = this;
-    this.ports.push(port);
-  }
-  
-  /**
-   * 属性を削除する
-   * @param attributeId 削除する属性のID
-   * @returns 削除成功した場合はtrue、そうでなければfalse
-   */
-  removeAttribute(attributeId: string): boolean {
-    const initialLength = this.attributes.length;
-    this.attributes = this.attributes.filter(a => a.id !== attributeId);
-    return this.attributes.length !== initialLength;
+  addPort(portId: string): void {
+    if (!this.ports.includes(portId)) {
+      this.ports.push(portId);
+    }
   }
   
   /**
    * ポートを削除する
    * @param portId 削除するポートのID
-   * @returns 削除成功した場合はtrue、そうでなければfalse
+   * @returns 削除に成功した場合はtrue、見つからない場合はfalse
    */
   removePort(portId: string): boolean {
-    const initialLength = this.ports.length;
-    this.ports = this.ports.filter(p => p.id !== portId);
-    return this.ports.length !== initialLength;
+    const index = this.ports.indexOf(portId);
+    if (index !== -1) {
+      this.ports.splice(index, 1);
+      return true;
+    }
+    return false;
   }
   
   /**
-   * パート定義の情報をオブジェクトとして返す
+   * JSONオブジェクトに変換する
+   * @returns SysML2_PartDefinition形式のJSONオブジェクト
    */
-  override toObject() {
+  toJSON(): SysML2_PartDefinition {
     return {
-      ...super.toObject(),
-      blockTypeId: this.blockType?.id,
-      blockTypeName: this.blockType?.name,
-      attributes: this.attributes.map(a => a.toObject()),
-      ports: this.ports.map(p => p.toObject()),
-      position: this.position,
-      size: this.size,
+      ...super.toJSON(),
+      __type: 'PartDefinition',
+      isHuman: this.isHuman,
+      partUsages: this.partUsages,
+      interfaceDefinitions: this.interfaceDefinitions,
+      connectionDefinitions: this.connectionDefinitions,
+      flowDefinitions: this.flowDefinitions,
+      stateDefinitions: this.stateDefinitions,
+      constraintDefinitions: this.constraintDefinitions,
+      requirementDefinitions: this.requirementDefinitions,
+      calculationDefinitions: this.calculationDefinitions,
+      metadataDefinitions: this.metadataDefinitions,
+      ports: this.ports
+    };
+  }
+  
+  /**
+   * JSONオブジェクトからPartDefinitionインスタンスを生成する
+   * @param json 変換元のJSONオブジェクト
+   * @returns PartDefinitionインスタンス
+   */
+  static fromJSON(json: SysML2_PartDefinition): PartDefinition {
+    return new PartDefinition({
+      id: json.id,
+      ownerId: json.ownerId,
+      name: json.name,
+      isAbstract: json.isAbstract,
+      isVariation: json.isVariation,
+      stereotype: json.stereotype,
+      ownedFeatures: json.ownedFeatures,
+      isHuman: json.isHuman,
+      partUsages: json.partUsages,
+      interfaceDefinitions: json.interfaceDefinitions,
+      connectionDefinitions: json.connectionDefinitions,
+      flowDefinitions: json.flowDefinitions,
+      stateDefinitions: json.stateDefinitions,
+      constraintDefinitions: json.constraintDefinitions,
+      requirementDefinitions: json.requirementDefinitions,
+      calculationDefinitions: json.calculationDefinitions,
+      metadataDefinitions: json.metadataDefinitions,
+      ports: json.ports
+    });
+  }
+  
+  /**
+   * オブジェクトをプレーンなJavaScriptオブジェクトに変換する（UI表示用）
+   * @returns プレーンなJavaScriptオブジェクト
+   */
+  toObject() {
+    return {
+      id: this.id,
+      name: this.name,
+      stereotype: this.stereotype || 'part_def',
       isAbstract: this.isAbstract,
-      multiplicity: this.multiplicity
+      isHuman: this.isHuman,
+      ports: this.ports,
+      ownedFeatures: this.ownedFeatures
     };
   }
 }

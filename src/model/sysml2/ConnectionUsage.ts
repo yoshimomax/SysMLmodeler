@@ -1,19 +1,18 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Feature } from '../kerml/Feature';
-import { Definition } from './Definition';
-import { SysML2_ConnectionDefinition } from './interfaces';
+import { Usage } from './Usage';
+import { SysML2_ConnectionUsage } from './interfaces';
 
 /**
- * SysML v2のConnectionDefinitionクラス
- * システム要素間の接続を定義する
+ * SysML v2のConnectionUsageクラス
+ * システム要素間の接続の使用を表す
  * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.9に準拠
  */
-export class ConnectionDefinition extends Definition {
+export class ConnectionUsage extends Usage {
+  /** 参照するConnectionDefinitionのID */
+  connectionDefinitionId?: string;
+  
   /** 終端特性のIDリスト */
   endFeatures: string[];
-  
-  /** このConnectionDefinitionを使用するConnectionUsageのIDリスト */
-  connectionUsages: string[];
   
   /** 接続元の型ID */
   sourceTypeId?: string;
@@ -22,26 +21,34 @@ export class ConnectionDefinition extends Definition {
   targetTypeId?: string;
   
   /**
-   * ConnectionDefinition コンストラクタ
+   * ConnectionUsage コンストラクタ
    * @param params 初期化パラメータ
    */
   constructor(params: {
     id?: string;
     ownerId?: string;
     name?: string;
-    isAbstract?: boolean;
+    definitionId?: string;
+    connectionDefinitionId?: string;
     isVariation?: boolean;
     stereotype?: string;
-    ownedFeatures?: string[] | Feature[];
+    nestedUsages?: string[] | Usage[];
     endFeatures?: string[];
-    connectionUsages?: string[];
     sourceTypeId?: string;
     targetTypeId?: string;
   }) {
-    super(params);
+    super({
+      id: params.id || uuidv4(),
+      ownerId: params.ownerId,
+      name: params.name,
+      definitionId: params.definitionId || params.connectionDefinitionId,
+      isVariation: params.isVariation,
+      stereotype: params.stereotype,
+      nestedUsages: params.nestedUsages
+    });
     
+    this.connectionDefinitionId = params.connectionDefinitionId || params.definitionId;
     this.endFeatures = params.endFeatures || [];
-    this.connectionUsages = params.connectionUsages || [];
     this.sourceTypeId = params.sourceTypeId;
     this.targetTypeId = params.targetTypeId;
   }
@@ -71,46 +78,36 @@ export class ConnectionDefinition extends Definition {
   }
   
   /**
-   * ConnectionUsageへの参照を追加する
-   * @param connectionUsageId 追加するConnectionUsageのID
-   */
-  addConnectionUsageReference(connectionUsageId: string): void {
-    if (!this.connectionUsages.includes(connectionUsageId)) {
-      this.connectionUsages.push(connectionUsageId);
-    }
-  }
-  
-  /**
    * JSONオブジェクトに変換する
-   * @returns SysML2_ConnectionDefinition形式のJSONオブジェクト
+   * @returns SysML2_ConnectionUsage形式のJSONオブジェクト
    */
-  toJSON(): SysML2_ConnectionDefinition {
+  toJSON(): SysML2_ConnectionUsage {
     return {
       ...super.toJSON(),
-      __type: 'ConnectionDefinition',
+      __type: 'ConnectionUsage',
+      connectionDefinition: this.connectionDefinitionId,
       endFeatures: this.endFeatures,
-      connectionUsages: this.connectionUsages,
       sourceType: this.sourceTypeId,
       targetType: this.targetTypeId
     };
   }
   
   /**
-   * JSONオブジェクトからConnectionDefinitionインスタンスを生成する
+   * JSONオブジェクトからConnectionUsageインスタンスを生成する
    * @param json 変換元のJSONオブジェクト
-   * @returns ConnectionDefinitionインスタンス
+   * @returns ConnectionUsageインスタンス
    */
-  static fromJSON(json: SysML2_ConnectionDefinition): ConnectionDefinition {
-    return new ConnectionDefinition({
+  static fromJSON(json: SysML2_ConnectionUsage): ConnectionUsage {
+    return new ConnectionUsage({
       id: json.id,
       ownerId: json.ownerId,
       name: json.name,
-      isAbstract: json.isAbstract,
+      definitionId: json.definition,
+      connectionDefinitionId: json.connectionDefinition,
       isVariation: json.isVariation,
       stereotype: json.stereotype,
-      ownedFeatures: json.ownedFeatures,
+      nestedUsages: json.nestedUsages,
       endFeatures: json.endFeatures,
-      connectionUsages: json.connectionUsages,
       sourceTypeId: json.sourceType,
       targetTypeId: json.targetType
     });
@@ -124,8 +121,8 @@ export class ConnectionDefinition extends Definition {
     return {
       id: this.id,
       name: this.name,
-      stereotype: this.stereotype || 'connection_def',
-      isAbstract: this.isAbstract,
+      stereotype: this.stereotype || 'connection',
+      definitionId: this.connectionDefinitionId,
       endFeatures: this.endFeatures,
       sourceTypeId: this.sourceTypeId,
       targetTypeId: this.targetTypeId

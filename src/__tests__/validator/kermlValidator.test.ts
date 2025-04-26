@@ -1,326 +1,509 @@
-import { KerMLValidator } from '../../validator/kermlValidator';
-import { MultiplicityRange } from '../../model/kerml/MultiplicityRange';
-import { Specialization } from '../../model/kerml/Specialization';
-import { Union } from '../../model/kerml/Union';
-import { Intersect } from '../../model/kerml/Intersect';
-import { Difference } from '../../model/kerml/Difference';
-import { FeatureMembership } from '../../model/kerml/FeatureMembership';
-import { TypeFeaturing } from '../../model/kerml/TypeFeaturing';
-import { FeatureChaining } from '../../model/kerml/FeatureChaining';
-import { FeatureInverting } from '../../model/kerml/FeatureInverting';
-import { Feature } from '../../model/kerml/Feature';
+import { KermlValidator } from '../../validator/kermlValidator';
+import {
+  Type,
+  Feature,
+  MultiplicityRange,
+  Specialization,
+  Union,
+  Intersect, 
+  Difference,
+  FeatureMembership,
+  TypeFeaturing,
+  FeatureChaining,
+  FeatureInverting
+} from '../../model/kerml';
 
-describe('KerMLValidator', () => {
-  let validator: KerMLValidator;
-  
-  beforeEach(() => {
-    validator = new KerMLValidator();
-  });
-  
-  describe('validateMultiplicityRange', () => {
-    test('should pass for valid multiplicity ranges', () => {
-      // 有効な範囲: 0..1
-      const range1 = new MultiplicityRange({
-        lowerBound: 0,
-        upperBound: 1
-      });
-      expect(validator.validateMultiplicityRange(range1)).toHaveLength(0);
-      
-      // 有効な範囲: 1..1 (単一値)
-      const range2 = new MultiplicityRange({
-        lowerBound: 1,
-        upperBound: 1
-      });
-      expect(validator.validateMultiplicityRange(range2)).toHaveLength(0);
-      
-      // 有効な範囲: 0..* (無制限)
-      const range3 = new MultiplicityRange({
-        lowerBound: 0,
-        upperBound: -1
-      });
-      expect(validator.validateMultiplicityRange(range3)).toHaveLength(0);
-      
-      // 有効な範囲: 2..5
-      const range4 = new MultiplicityRange({
-        lowerBound: 2,
-        upperBound: 5
-      });
-      expect(validator.validateMultiplicityRange(range4)).toHaveLength(0);
-    });
-    
-    test('should fail for invalid lower bound', () => {
-      const range = new MultiplicityRange();
-      range.updateRange(-1, 1);
-      
-      const errors = validator.validateMultiplicityRange(range);
-      expect(errors).toHaveLength(1);
-      expect(errors[0].errorCode).toBe('INVALID_LOWER_BOUND');
-    });
-    
-    test('should fail for invalid upper bound', () => {
-      const range = new MultiplicityRange();
-      range.updateRange(3, 2);
-      
-      const errors = validator.validateMultiplicityRange(range);
-      expect(errors).toHaveLength(1);
-      expect(errors[0].errorCode).toBe('INVALID_UPPER_BOUND');
-    });
-  });
-  
+describe('KermlValidator', () => {
   describe('validateSpecializationCycles', () => {
-    test('should pass for valid specialization hierarchy', () => {
-      // A -> B -> C の有効な階層
-      const specializations = [
-        new Specialization({
-          specific: 'A',
-          general: 'B'
-        }),
-        new Specialization({
-          specific: 'B',
-          general: 'C'
-        })
-      ];
-      
-      const errors = validator.validateSpecializationCycles(specializations);
-      expect(errors).toHaveLength(0);
-    });
-    
     test('should detect direct specialization cycle', () => {
-      // A -> B -> A の直接的な循環
+      // Arrange
       const specializations = [
         new Specialization({
-          specific: 'A',
-          general: 'B'
+          id: 'spec1',
+          general: 'typeB',
+          specific: 'typeA'
         }),
         new Specialization({
-          specific: 'B',
-          general: 'A'
+          id: 'spec2',
+          general: 'typeA',
+          specific: 'typeB'
         })
       ];
       
-      const errors = validator.validateSpecializationCycles(specializations);
-      expect(errors).toHaveLength(1);
-      expect(errors[0].errorCode).toBe('SPECIALIZATION_CYCLE');
+      // Act
+      const errors = KermlValidator.validateSpecializationCycles(specializations);
+      
+      // Assert
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors[0]).toContain('cycle');
+      expect(errors[0]).toContain('typeA');
+      expect(errors[0]).toContain('typeB');
     });
     
     test('should detect indirect specialization cycle', () => {
-      // A -> B -> C -> A の間接的な循環
+      // Arrange
       const specializations = [
         new Specialization({
-          specific: 'A',
-          general: 'B'
+          id: 'spec1',
+          general: 'typeB',
+          specific: 'typeA'
         }),
         new Specialization({
-          specific: 'B',
-          general: 'C'
+          id: 'spec2',
+          general: 'typeC',
+          specific: 'typeB'
         }),
         new Specialization({
-          specific: 'C',
-          general: 'A'
+          id: 'spec3',
+          general: 'typeA',
+          specific: 'typeC'
         })
       ];
       
-      const errors = validator.validateSpecializationCycles(specializations);
-      expect(errors).toHaveLength(1);
-      expect(errors[0].errorCode).toBe('SPECIALIZATION_CYCLE');
+      // Act
+      const errors = KermlValidator.validateSpecializationCycles(specializations);
+      
+      // Assert
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors[0]).toContain('cycle');
+      expect(errors[0]).toContain('typeA');
+      expect(errors[0]).toContain('typeB');
+      expect(errors[0]).toContain('typeC');
+    });
+    
+    test('should pass for valid specialization hierarchy', () => {
+      // Arrange
+      const specializations = [
+        new Specialization({
+          id: 'spec1',
+          general: 'typeBase',
+          specific: 'typeA'
+        }),
+        new Specialization({
+          id: 'spec2',
+          general: 'typeBase',
+          specific: 'typeB'
+        }),
+        new Specialization({
+          id: 'spec3',
+          general: 'typeA',
+          specific: 'typeC'
+        })
+      ];
+      
+      // Act
+      const errors = KermlValidator.validateSpecializationCycles(specializations);
+      
+      // Assert
+      expect(errors.length).toBe(0);
+    });
+  });
+  
+  describe('validateMultiplicityRangeBounds', () => {
+    test('should detect invalid multiplicityRange with lowerBound > upperBound', () => {
+      // Arrange
+      const ranges = [
+        new MultiplicityRange({
+          id: 'range1',
+          lowerBound: 5,
+          upperBound: 3
+        })
+      ];
+      
+      // Act
+      const errors = KermlValidator.validateMultiplicityRangeBounds(ranges);
+      
+      // Assert
+      expect(errors.length).toBe(1);
+      expect(errors[0]).toContain('range1');
+      expect(errors[0]).toContain('lowerBound (5) > upperBound (3)');
+    });
+    
+    test('should detect invalid multiplicityRange with negative lowerBound', () => {
+      // Arrange
+      const ranges = [
+        new MultiplicityRange({
+          id: 'range1',
+          lowerBound: -2,
+          upperBound: 5
+        })
+      ];
+      
+      // Act
+      const errors = KermlValidator.validateMultiplicityRangeBounds(ranges);
+      
+      // Assert
+      expect(errors.length).toBe(1);
+      expect(errors[0]).toContain('range1');
+      expect(errors[0]).toContain('lowerBound (-2) cannot be negative');
+    });
+    
+    test('should pass for valid multiplicityRange with lowerBound <= upperBound', () => {
+      // Arrange
+      const ranges = [
+        new MultiplicityRange({
+          id: 'range1',
+          lowerBound: 0,
+          upperBound: 5
+        }),
+        new MultiplicityRange({
+          id: 'range2',
+          lowerBound: 3,
+          upperBound: 3
+        }),
+        new MultiplicityRange({
+          id: 'range3',
+          lowerBound: 0,
+          upperBound: -1 // -1 means unlimited
+        })
+      ];
+      
+      // Act
+      const errors = KermlValidator.validateMultiplicityRangeBounds(ranges);
+      
+      // Assert
+      expect(errors.length).toBe(0);
     });
   });
   
   describe('validateTypeOperators', () => {
-    test('should pass for valid Union, Intersect, and Difference', () => {
+    test('should detect union with no operands', () => {
+      // Arrange
       const unions = [
         new Union({
-          operands: ['A', 'B', 'C']
+          id: 'union1',
+          name: 'EmptyUnion',
+          operands: []
+        })
+      ];
+      
+      // Act
+      const errors = KermlValidator.validateTypeOperators(unions, [], []);
+      
+      // Assert
+      expect(errors.length).toBe(1);
+      expect(errors[0]).toContain('EmptyUnion');
+      expect(errors[0]).toContain('at least one operand');
+    });
+    
+    test('should detect intersect with no operands', () => {
+      // Arrange
+      const intersects = [
+        new Intersect({
+          id: 'intersect1',
+          name: 'EmptyIntersect',
+          operands: []
+        })
+      ];
+      
+      // Act
+      const errors = KermlValidator.validateTypeOperators([], intersects, []);
+      
+      // Assert
+      expect(errors.length).toBe(1);
+      expect(errors[0]).toContain('EmptyIntersect');
+      expect(errors[0]).toContain('at least one operand');
+    });
+    
+    test('should detect difference with missing operands', () => {
+      // Arrange
+      const differences = [
+        new Difference({
+          id: 'diff1',
+          name: 'InvalidDiff',
+          firstOperand: '',
+          secondOperand: 'typeB'
+        }),
+        new Difference({
+          id: 'diff2',
+          name: 'AnotherInvalidDiff',
+          firstOperand: 'typeA',
+          secondOperand: ''
+        })
+      ];
+      
+      // Act
+      const errors = KermlValidator.validateTypeOperators([], [], differences);
+      
+      // Assert
+      expect(errors.length).toBe(2);
+      expect(errors[0]).toContain('InvalidDiff');
+      expect(errors[0]).toContain('first operand');
+      expect(errors[1]).toContain('AnotherInvalidDiff');
+      expect(errors[1]).toContain('second operand');
+    });
+    
+    test('should pass for valid type operators', () => {
+      // Arrange
+      const unions = [
+        new Union({
+          id: 'union1',
+          name: 'ValidUnion',
+          operands: ['typeA', 'typeB']
         })
       ];
       
       const intersects = [
         new Intersect({
-          operands: ['A', 'B']
+          id: 'intersect1',
+          name: 'ValidIntersect',
+          operands: ['typeA', 'typeB', 'typeC']
         })
       ];
       
       const differences = [
         new Difference({
-          firstOperand: 'A',
-          secondOperand: 'B'
+          id: 'diff1',
+          name: 'ValidDiff',
+          firstOperand: 'typeA',
+          secondOperand: 'typeB'
         })
       ];
       
-      const errors = validator.validateTypeOperators(unions, intersects, differences);
-      expect(errors).toHaveLength(0);
-    });
-    
-    test('should fail for Union with insufficient operands', () => {
-      const unions = [
-        new Union({
-          operands: ['A'] // 1つの演算子のみ
-        })
-      ];
+      // Act
+      const errors = KermlValidator.validateTypeOperators(unions, intersects, differences);
       
-      const errors = validator.validateTypeOperators(unions, [], []);
-      expect(errors).toHaveLength(1);
-      expect(errors[0].errorCode).toBe('INSUFFICIENT_OPERANDS');
-    });
-    
-    test('should fail for Intersect with insufficient operands', () => {
-      const intersects = [
-        new Intersect({
-          operands: [] // 演算子なし
-        })
-      ];
-      
-      const errors = validator.validateTypeOperators([], intersects, []);
-      expect(errors).toHaveLength(1);
-      expect(errors[0].errorCode).toBe('INSUFFICIENT_OPERANDS');
-    });
-    
-    test('should fail for Difference with missing operands', () => {
-      // 実際のDifferenceではコンストラクタに両方のオペランドが必要なので、
-      // 検証のためにオブジェクトを直接操作
-      const difference = new Difference({
-        firstOperand: 'A',
-        secondOperand: 'B'
-      });
-      
-      // @ts-ignore - 検証のためにプロパティを直接操作
-      difference.firstOperand = '';
-      
-      const errors = validator.validateTypeOperators([], [], [difference]);
-      expect(errors).toHaveLength(1);
-      expect(errors[0].errorCode).toBe('MISSING_FIRST_OPERAND');
+      // Assert
+      expect(errors.length).toBe(0);
     });
   });
   
   describe('validateRelationships', () => {
-    test('should pass for valid relationships', () => {
+    test('should detect invalid featureMembership', () => {
+      // Arrange
       const featureMemberships = [
         new FeatureMembership({
-          owningType: 'Type1',
-          memberFeature: 'Feature1'
+          id: 'fm1',
+          owningType: '',
+          memberFeature: 'feature1'
+        }),
+        new FeatureMembership({
+          id: 'fm2',
+          owningType: 'type1',
+          memberFeature: ''
+        })
+      ];
+      
+      // Act
+      const errors = KermlValidator.validateRelationships(featureMemberships, [], [], []);
+      
+      // Assert
+      expect(errors.length).toBe(2);
+      expect(errors[0]).toContain('fm1');
+      expect(errors[0]).toContain('owningType');
+      expect(errors[1]).toContain('fm2');
+      expect(errors[1]).toContain('memberFeature');
+    });
+    
+    test('should detect invalid typeFeaturing', () => {
+      // Arrange
+      const typeFeaturing = [
+        new TypeFeaturing({
+          id: 'tf1',
+          featuringType: '',
+          featuredType: 'type1'
+        })
+      ];
+      
+      // Act
+      const errors = KermlValidator.validateRelationships([], typeFeaturing, [], []);
+      
+      // Assert
+      expect(errors.length).toBe(1);
+      expect(errors[0]).toContain('tf1');
+      expect(errors[0]).toContain('featuringType');
+    });
+    
+    test('should detect invalid featureChaining', () => {
+      // Arrange
+      const featureChainings = [
+        new FeatureChaining({
+          id: 'fc1',
+          chainingFeature: 'feature1',
+          featuredBy: ''
+        })
+      ];
+      
+      // Act
+      const errors = KermlValidator.validateRelationships([], [], featureChainings, []);
+      
+      // Assert
+      expect(errors.length).toBe(1);
+      expect(errors[0]).toContain('fc1');
+      expect(errors[0]).toContain('featuredBy');
+    });
+    
+    test('should detect invalid featureInverting', () => {
+      // Arrange
+      const featureInvertings = [
+        new FeatureInverting({
+          id: 'fi1',
+          featureInverted: '',
+          invertingFeature: 'feature1'
+        })
+      ];
+      
+      // Act
+      const errors = KermlValidator.validateRelationships([], [], [], featureInvertings);
+      
+      // Assert
+      expect(errors.length).toBe(1);
+      expect(errors[0]).toContain('fi1');
+      expect(errors[0]).toContain('featureInverted');
+    });
+    
+    test('should pass for valid relationships', () => {
+      // Arrange
+      const featureMemberships = [
+        new FeatureMembership({
+          id: 'fm1',
+          owningType: 'type1',
+          memberFeature: 'feature1'
         })
       ];
       
       const typeFeaturing = [
         new TypeFeaturing({
-          featuringType: 'Type1',
-          featuredType: 'Type2'
+          id: 'tf1',
+          featuringType: 'type1',
+          featuredType: 'type2'
         })
       ];
       
-      const featureChainings = [
-        new FeatureChaining({
-          chainingFeature: 'Feature1',
-          featuredBy: 'Feature2'
-        })
-      ];
+      // Act
+      const errors = KermlValidator.validateRelationships(featureMemberships, typeFeaturing, [], []);
       
-      const featureInvertings = [
-        new FeatureInverting({
-          featureInverted: 'Feature1',
-          invertingFeature: 'Feature2'
-        })
-      ];
-      
-      const errors = validator.validateRelationships(
-        featureMemberships,
-        typeFeaturing,
-        featureChainings,
-        featureInvertings
-      );
-      
-      expect(errors).toHaveLength(0);
-    });
-    
-    test('should fail for invalid relationships with missing properties', () => {
-      // プロパティを欠落させた関係を作成
-      const featureMembership = new FeatureMembership({
-        owningType: 'Type1',
-        memberFeature: 'Feature1'
-      });
-      // @ts-ignore - 検証のためにプロパティを直接操作
-      featureMembership.owningType = '';
-      
-      const typeFeaturing = new TypeFeaturing({
-        featuringType: 'Type1',
-        featuredType: 'Type2'
-      });
-      // @ts-ignore - 検証のためにプロパティを直接操作
-      typeFeaturing.featuredType = '';
-      
-      const featureChaining = new FeatureChaining({
-        chainingFeature: 'Feature1',
-        featuredBy: 'Feature2'
-      });
-      // @ts-ignore - 検証のためにプロパティを直接操作
-      featureChaining.chainingFeature = '';
-      
-      const featureInverting = new FeatureInverting({
-        featureInverted: 'Feature1',
-        invertingFeature: 'Feature2'
-      });
-      // @ts-ignore - 検証のためにプロパティを直接操作
-      featureInverting.invertingFeature = '';
-      
-      const errors = validator.validateRelationships(
-        [featureMembership],
-        [typeFeaturing],
-        [featureChaining],
-        [featureInverting]
-      );
-      
-      expect(errors).toHaveLength(4);
-      expect(errors[0].errorCode).toBe('MISSING_OWNING_TYPE');
-      expect(errors[1].errorCode).toBe('MISSING_FEATURED_TYPE');
-      expect(errors[2].errorCode).toBe('MISSING_CHAINING_FEATURE');
-      expect(errors[3].errorCode).toBe('MISSING_INVERTING_FEATURE');
+      // Assert
+      expect(errors.length).toBe(0);
     });
   });
   
-  describe('validateFeatures', () => {
-    test('should pass for valid features', () => {
+  describe('validateTypeFeatureConsistency', () => {
+    test('should detect feature with non-existent type reference', () => {
+      // Arrange
+      const types = [
+        new Type({ id: 'type1', name: 'Type1' })
+      ];
+      
       const features = [
         new Feature({
+          id: 'feature1',
           name: 'Feature1',
-          isComposite: true
-        }),
-        new Feature({
-          name: 'Feature2',
-          isPortion: true
-        }),
-        new Feature({
-          name: 'Feature3',
-          isEnd: true,
-          typeId: 'Type1'
+          typeId: 'nonexistent'
         })
       ];
       
-      const errors = validator.validateFeatures(features);
-      expect(errors).toHaveLength(0);
+      // Act
+      const errors = KermlValidator.validateTypeFeatureConsistency(types, features);
+      
+      // Assert
+      expect(errors.length).toBe(1);
+      expect(errors[0]).toContain('Feature1');
+      expect(errors[0]).toContain('nonexistent');
     });
     
-    test('should fail for features with incompatible flags', () => {
-      const feature = new Feature({
-        name: 'InvalidFeature',
-        isComposite: true,
-        isPortion: true // コンポジションとポーションは両立できない
-      });
+    test('should detect type with non-existent feature reference', () => {
+      // Arrange
+      const types = [
+        new Type({
+          id: 'type1',
+          name: 'Type1',
+          features: ['nonexistent']
+        })
+      ];
       
-      const errors = validator.validateFeatures([feature]);
-      expect(errors).toHaveLength(1);
-      expect(errors[0].errorCode).toBe('INCOMPATIBLE_FLAGS');
+      const features = [
+        new Feature({ id: 'feature1', name: 'Feature1' })
+      ];
+      
+      // Act
+      const errors = KermlValidator.validateTypeFeatureConsistency(types, features);
+      
+      // Assert
+      expect(errors.length).toBe(1);
+      expect(errors[0]).toContain('Type1');
+      expect(errors[0]).toContain('nonexistent');
     });
     
-    test('should fail for end features without type reference', () => {
-      const feature = new Feature({
-        name: 'InvalidEndFeature',
-        isEnd: true
-        // typeId が欠落
-      });
+    test('should pass for valid type-feature references', () => {
+      // Arrange
+      const features = [
+        new Feature({ id: 'feature1', name: 'Feature1', typeId: 'type1' }),
+        new Feature({ id: 'feature2', name: 'Feature2', typeId: 'type2' })
+      ];
       
-      const errors = validator.validateFeatures([feature]);
-      expect(errors).toHaveLength(1);
-      expect(errors[0].errorCode).toBe('MISSING_TYPE_REFERENCE');
+      const types = [
+        new Type({ id: 'type1', name: 'Type1', features: ['feature1'] }),
+        new Type({ id: 'type2', name: 'Type2', features: ['feature2'] })
+      ];
+      
+      // Act
+      const errors = KermlValidator.validateTypeFeatureConsistency(types, features);
+      
+      // Assert
+      expect(errors.length).toBe(0);
+    });
+  });
+  
+  describe('validateAll', () => {
+    test('should aggregate errors from all validations', () => {
+      // Arrange
+      const specializations = [
+        new Specialization({
+          id: 'spec1',
+          general: 'typeB',
+          specific: 'typeA'
+        }),
+        new Specialization({
+          id: 'spec2',
+          general: 'typeA',
+          specific: 'typeB'
+        })
+      ];
+      
+      const ranges = [
+        new MultiplicityRange({
+          id: 'range1',
+          lowerBound: 5,
+          upperBound: 3
+        })
+      ];
+      
+      const unions = [
+        new Union({
+          id: 'union1',
+          name: 'EmptyUnion',
+          operands: []
+        })
+      ];
+      
+      const featureMemberships = [
+        new FeatureMembership({
+          id: 'fm1',
+          owningType: '',
+          memberFeature: 'feature1'
+        })
+      ];
+      
+      const elements = {
+        types: [] as Type[],
+        features: [] as Feature[],
+        multiplicityRanges: ranges,
+        specializations: specializations,
+        unions: unions,
+        intersects: [] as Intersect[],
+        differences: [] as Difference[],
+        featureMemberships: featureMemberships,
+        typeFeaturing: [] as TypeFeaturing[],
+        featureChainings: [] as FeatureChaining[],
+        featureInvertings: [] as FeatureInverting[]
+      };
+      
+      // Act
+      const errors = KermlValidator.validateAll(elements);
+      
+      // Assert
+      expect(errors.length).toBeGreaterThan(3); // At least one error per validation
     });
   });
 });
