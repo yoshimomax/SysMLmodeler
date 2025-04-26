@@ -213,6 +213,37 @@ export interface SysML2_TransitionUsage extends SysML2_Usage {
 }
 
 /**
+ * SysML2 ActionDefinition インターフェース
+ * アクションの定義 (OMG SysML v2 Beta3 Part1 §7.17)
+ */
+export interface SysML2_ActionDefinition extends SysML2_Definition {
+  __type: 'ActionDefinition';
+  actionUsages?: string[];      // このActionDefinitionを使用するActionUsageのIDリスト
+  parameters?: string[];        // パラメータのIDリスト
+  isAbstract?: boolean;         // 抽象アクションかどうか
+  bodies?: string[];            // アクション本体（Behavior）のIDリスト
+  guardParams?: string[];       // ガード条件パラメータのIDリスト
+  preconditions?: string[];     // 事前条件のIDリスト
+  postconditions?: string[];    // 事後条件のIDリスト
+}
+
+/**
+ * SysML2 ActionUsage インターフェース
+ * アクションの使用 (OMG SysML v2 Beta3 Part1 §7.17)
+ */
+export interface SysML2_ActionUsage extends SysML2_Usage {
+  __type: 'ActionUsage';
+  actionDefinition?: string;    // 参照するActionDefinitionのID
+  parameters?: string[];        // パラメータのIDリスト
+  bodies?: string[];            // アクション本体（Behavior）のIDリスト
+  isReference?: boolean;        // 他のActionUsageへの参照かどうか
+  guard?: string;               // ガード条件
+  successions?: string[];       // 後続アクション（succession関係）のIDリスト
+  preconditions?: string[];     // 事前条件のIDリスト
+  postconditions?: string[];    // 事後条件のIDリスト
+}
+
+/**
  * SysML2 CalculationDefinition インターフェース
  */
 export interface SysML2_CalculationDefinition extends SysML2_Definition {
