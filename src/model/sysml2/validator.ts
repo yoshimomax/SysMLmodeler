@@ -9,8 +9,9 @@
  * - タイプと継承の適合性
  * - 所有階層の整合性
  * - ステレオタイプの適合性
+ * - 状態マシン検証（初期状態、遷移条件、到達可能性）
  * 
- * バージョン: 1.1.0
+ * バージョン: 1.2.0
  * 最終更新日: 2025-04-26
  */
 
@@ -21,6 +22,10 @@ import { PartUsage } from './PartUsage';
 import { PortDefinition } from './PortDefinition';
 import { InterfaceDefinition } from './InterfaceDefinition';
 import { ConnectionDefinition } from './ConnectionDefinition';
+import { StateDefinition } from './StateDefinition';
+import { StateUsage } from './StateUsage';
+import { TransitionDefinition } from './TransitionDefinition';
+import { TransitionUsage } from './TransitionUsage';
 
 /**
  * バリデーションエラー

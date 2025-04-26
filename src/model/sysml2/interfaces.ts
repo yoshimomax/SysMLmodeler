@@ -344,7 +344,7 @@ export interface SysML2_StakeholderUsage extends SysML2_PartUsage {
  * SysML2 CaseDefinition インターフェース
  */
 export interface SysML2_CaseDefinition extends SysML2_Definition {
-  __type: 'CaseDefinition';
+  __type: 'CaseDefinition' | string;
   caseUsages?: string[];
   objectives?: string[];
   subjectParameter?: string;
@@ -354,7 +354,7 @@ export interface SysML2_CaseDefinition extends SysML2_Definition {
  * SysML2 CaseUsage インターフェース
  */
 export interface SysML2_CaseUsage extends SysML2_Usage {
-  __type: 'CaseUsage';
+  __type: 'CaseUsage' | string;
   caseDefinition?: string;
   objectives?: string[];
   subjectParameter?: string;
