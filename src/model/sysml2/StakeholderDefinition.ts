@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Feature } from '../kerml/Feature';
 import { PartDefinition } from './PartDefinition';
-import { SysML2_StakeholderDefinition } from './interfaces';
+import { SysML2_StakeholderDefinition, SysML2_PartDefinition } from './interfaces';
 
 /**
  * SysML v2のStakeholderDefinitionクラス
@@ -154,11 +154,10 @@ export class StakeholderDefinition extends PartDefinition {
    * @returns プレーンなJavaScriptオブジェクト
    */
   toObject() {
+    const baseObject = super.toObject();
     return {
-      id: this.id,
-      name: this.name,
+      ...baseObject,
       stereotype: this.stereotype || 'stakeholder_def',
-      isAbstract: this.isAbstract,
       concerns: this.concerns,
       viewpoints: this.viewpoints
     };

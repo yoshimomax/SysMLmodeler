@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Feature } from '../kerml/Feature';
 import { PartDefinition } from './PartDefinition';
-import { SysML2_ActorDefinition } from './interfaces';
+import { SysML2_ActorDefinition, SysML2_PartDefinition } from './interfaces';
 
 /**
  * SysML v2のActorDefinitionクラス
@@ -123,11 +123,10 @@ export class ActorDefinition extends PartDefinition {
    * @returns プレーンなJavaScriptオブジェクト
    */
   toObject() {
+    const baseObject = super.toObject();
     return {
-      id: this.id,
-      name: this.name,
+      ...baseObject,
       stereotype: this.stereotype || 'actor_def',
-      isAbstract: this.isAbstract,
       participatedUseCases: this.participatedUseCases
     };
   }

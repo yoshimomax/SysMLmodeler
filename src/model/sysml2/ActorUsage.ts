@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { PartUsage } from './PartUsage';
 import { Usage } from './Usage';
-import { SysML2_ActorUsage } from './interfaces';
+import { SysML2_ActorUsage, SysML2_PartUsage } from './interfaces';
 
 /**
  * SysML v2のActorUsageクラス
@@ -108,9 +108,9 @@ export class ActorUsage extends PartUsage {
    * @returns プレーンなJavaScriptオブジェクト
    */
   toObject() {
+    const baseObject = super.toObject();
     return {
-      id: this.id,
-      name: this.name,
+      ...baseObject,
       stereotype: this.stereotype || 'actor',
       definitionId: this.actorDefinitionId,
       participatedUseCases: this.participatedUseCases

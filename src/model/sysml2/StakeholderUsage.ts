@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { PartUsage } from './PartUsage';
 import { Usage } from './Usage';
-import { SysML2_StakeholderUsage } from './interfaces';
+import { SysML2_StakeholderUsage, SysML2_PartUsage } from './interfaces';
 
 /**
  * SysML v2のStakeholderUsageクラス
@@ -139,9 +139,9 @@ export class StakeholderUsage extends PartUsage {
    * @returns プレーンなJavaScriptオブジェクト
    */
   toObject() {
+    const baseObject = super.toObject();
     return {
-      id: this.id,
-      name: this.name,
+      ...baseObject,
       stereotype: this.stereotype || 'stakeholder',
       definitionId: this.stakeholderDefinitionId,
       concerns: this.concerns,
