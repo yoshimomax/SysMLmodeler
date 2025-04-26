@@ -4,14 +4,14 @@ import { SysML2_ConcernUsage } from './interfaces';
 
 /**
  * SysML v2のConcernUsageクラス
- * ステークホルダーの関心事の使用を表す
+ * システムに関する関心事の使用を表す
  * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.16に準拠
  */
 export class ConcernUsage extends Usage {
   /** 参照するConcernDefinitionのID */
   concernDefinitionId?: string;
   
-  /** 関心事に関連するステークホルダーのIDリスト */
+  /** この関心事に関連するステークホルダーのIDリスト */
   stakeholders: string[];
   
   /**

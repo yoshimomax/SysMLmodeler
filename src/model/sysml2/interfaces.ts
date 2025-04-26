@@ -271,6 +271,44 @@ export interface SysML2_ConcernUsage extends SysML2_Usage {
 }
 
 /**
+ * SysML2 ActorDefinition インターフェース
+ */
+export interface SysML2_ActorDefinition extends SysML2_PartDefinition {
+  __type: 'ActorDefinition';
+  actorUsages?: string[];
+  participatedUseCases?: string[];
+}
+
+/**
+ * SysML2 ActorUsage インターフェース
+ */
+export interface SysML2_ActorUsage extends SysML2_PartUsage {
+  __type: 'ActorUsage';
+  actorDefinition?: string;
+  participatedUseCases?: string[];
+}
+
+/**
+ * SysML2 StakeholderDefinition インターフェース
+ */
+export interface SysML2_StakeholderDefinition extends SysML2_PartDefinition {
+  __type: 'StakeholderDefinition';
+  stakeholderUsages?: string[];
+  concerns?: string[];
+  viewpoints?: string[];
+}
+
+/**
+ * SysML2 StakeholderUsage インターフェース
+ */
+export interface SysML2_StakeholderUsage extends SysML2_PartUsage {
+  __type: 'StakeholderUsage';
+  stakeholderDefinition?: string;
+  concerns?: string[];
+  viewpoints?: string[];
+}
+
+/**
  * SysML2 CaseDefinition インターフェース
  */
 export interface SysML2_CaseDefinition extends SysML2_Definition {

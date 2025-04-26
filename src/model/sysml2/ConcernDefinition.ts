@@ -5,14 +5,14 @@ import { SysML2_ConcernDefinition } from './interfaces';
 
 /**
  * SysML v2のConcernDefinitionクラス
- * ステークホルダーの関心事を定義する
+ * システムに関する関心事を定義する
  * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.16に準拠
  */
 export class ConcernDefinition extends Definition {
   /** このConcernDefinitionを使用するConcernUsageのIDリスト */
   concernUsages: string[];
   
-  /** 関心事に関連するステークホルダーのIDリスト */
+  /** この関心事に関連するステークホルダーのIDリスト */
   stakeholders: string[];
   
   /**
