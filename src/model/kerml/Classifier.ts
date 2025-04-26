@@ -1,19 +1,27 @@
-import { v4 as uuidv4 } from 'uuid';
-import { KerML_Classifier } from './interfaces';
-import { Type } from './Type';
-import { Feature } from './Feature';
-
 /**
  * KerML Classifier クラス
- * KerML メタモデルの分類子（Classifier）概念を表現する
- * OMG仕様：ptc/2025-02-02, KerML v1.0 Beta3
+ * SysML v2 言語仕様のKerML基本型を表現する
+ * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.3に準拠
+ * 
+ * Classifierは、KerMLの型システムの基本クラスの一つで、
+ * 要素の分類と特性付けに使用されます。
  */
+
+import { v4 as uuid } from 'uuid';
+import { Type } from './Type';
+
 export class Classifier extends Type {
-  /** 密閉クラスかどうか（拡張できないクラス） */
-  isFinal: boolean = false;
+  /** 
+   * この分類器が抽象型かどうか
+   * 抽象型は直接インスタンス化できません
+   */
+  isAbstract: boolean = false;
   
-  /** 個体クラスかどうか（インスタンスの識別性を持つ） */
-  isIndividual: boolean = false;
+  /**
+   * この分類器が変種型かどうか
+   * 変種型は要素を物理的・状態的に区別するために使用されます
+   */
+  isVariation: boolean = false;
   
   /**
    * Classifier コンストラクタ
@@ -21,81 +29,85 @@ export class Classifier extends Type {
    */
   constructor(options: {
     id?: string;
-    ownerId?: string;
     name?: string;
-    shortName?: string;
-    qualifiedName?: string;
-    description?: string;
+    ownerId?: string;
     isAbstract?: boolean;
-    isConjugated?: boolean;
-    isFinal?: boolean;
-    isIndividual?: boolean;
-    features?: Feature[];
-  } = {}) {
-    // 親クラスのコンストラクタを呼び出し
+    isVariation?: boolean;
+  }) {
+    // Type基底クラスのコンストラクタを呼び出し
     super({
       id: options.id,
-      ownerId: options.ownerId,
       name: options.name,
-      shortName: options.shortName,
-      qualifiedName: options.qualifiedName,
-      description: options.description,
-      isAbstract: options.isAbstract,
-      isConjugated: options.isConjugated,
-      features: options.features
+      ownerId: options.ownerId
     });
     
-    if (options.isFinal !== undefined) {
-      this.isFinal = options.isFinal;
+    // 抽象型フラグの初期化
+    if (options.isAbstract !== undefined) {
+      this.isAbstract = options.isAbstract;
     }
     
-    if (options.isIndividual !== undefined) {
-      this.isIndividual = options.isIndividual;
+    // 変種型フラグの初期化
+    if (options.isVariation !== undefined) {
+      this.isVariation = options.isVariation;
     }
   }
   
   /**
-   * JSON形式に変換
-   * @returns JSON表現
+   * KerML制約を検証する
+   * SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.3に準拠
+   * @throws Error 制約違反がある場合
    */
-  toJSON(): KerML_Classifier {
+  validate(): void {
+    // 親クラス（Type）の制約を検証
+    super.validate();
+    
+    // Classifier固有の制約を検証
+    // 実装が必要な場合に追加
+  }
+  
+  /**
+   * 分類器の情報をオブジェクトとして返す
+   */
+  override toObject() {
+    const baseObject = super.toObject();
     return {
-      ...super.toJSON(),
-      __type: 'Classifier',
-      isFinal: this.isFinal,
-      isIndividual: this.isIndividual
-    } as KerML_Classifier;
+      ...baseObject,
+      isAbstract: this.isAbstract,
+      isVariation: this.isVariation
+    };
   }
   
   /**
-   * JSON形式から分類子を作成
-   * @param json JSON表現
-   * @returns 分類子インスタンス
+   * JSONデータからClassifierインスタンスを作成する
+   * @param json JSON形式のデータ
+   * @returns 新しいClassifierインスタンス
    */
-  static fromJSON(json: KerML_Classifier, featureInstances: Feature[] = []): Classifier {
-    // 基本的なClassifier情報で初期化
-    const classifier = new Classifier({
-      id: json.id,
-      ownerId: json.ownerId,
-      name: json.name,
-      shortName: json.shortName,
-      qualifiedName: json.qualifiedName,
-      description: json.description,
-      isAbstract: json.isAbstract,
-      isConjugated: json.isConjugated,
-      isFinal: json.isFinal,
-      isIndividual: json.isIndividual
-    });
-    
-    // Feature情報は既に生成されたインスタンスを使用
-    if (featureInstances.length > 0) {
-      featureInstances.forEach(feature => {
-        if (feature.ownerId === classifier.id) {
-          classifier.addFeature(feature);
-        }
-      });
+  static fromJSON(json: any): Classifier {
+    if (!json || typeof json !== 'object') {
+      throw new Error('有効なJSONオブジェクトではありません');
     }
+    
+    // Classifierインスタンスを作成
+    const classifier = new Classifier({
+      id: json.id || uuid(),
+      name: json.name,
+      ownerId: json.ownerId,
+      isAbstract: json.isAbstract,
+      isVariation: json.isVariation
+    });
     
     return classifier;
+  }
+  
+  /**
+   * JSONシリアライズ用のメソッド
+   * @returns JSON形式のオブジェクト
+   */
+  toJSON(): any {
+    const obj = this.toObject();
+    return {
+      ...obj,
+      __type: 'Classifier'
+    };
   }
 }

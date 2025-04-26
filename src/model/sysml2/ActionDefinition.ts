@@ -1,275 +1,234 @@
 /**
  * SysML v2 ActionDefinition クラス
- * アクションの定義を表すクラス
- * OMG SysML v2 Beta3 Part1 §7.17準拠
+ * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.17に準拠
+ * 
+ * ActionDefinitionは、アクションの型を定義するクラスです。
+ * パラメータを含み、アクションの振る舞いの枠組みを表現します。
  */
 
 import { v4 as uuid } from 'uuid';
-import { Definition } from './Definition';
-import { SysML2_ActionDefinition } from './interfaces';
-import { ValidationError } from './validator';
+import { Definition } from '../kerml/Definition';
+import { Parameter } from '../kerml/Parameter';
 
-/**
- * ActionDefinition コンストラクタパラメータ
- */
-export interface ActionDefinitionParams {
-  id?: string;
-  name?: string;
-  description?: string;
-  isAbstract?: boolean;
-  parameters?: string[];
-  bodies?: string[];
-  guardParams?: string[];
-  preconditions?: string[];
-  postconditions?: string[];
-}
-
-/**
- * ActionDefinition クラス
- * SysML v2 のアクション定義を表現する
- */
-export class ActionDefinition extends Definition implements SysML2_ActionDefinition {
-  /** クラス識別子 */
-  __type: 'ActionDefinition' = 'ActionDefinition';
-  
-  /** このActionDefinitionを使用するActionUsageのIDリスト */
-  actionUsages: string[] = [];
-  
-  /** パラメータのIDリスト */
+export class ActionDefinition extends Definition {
+  /** アクションが持つパラメータの参照リスト */
   parameters: string[] = [];
   
-  /** 抽象アクションかどうか */
-  isAbstract: boolean = false;
+  /** アクションが持つパラメータのマッピング */
+  parameterMappings: Map<string, string> = new Map();
   
-  /** アクション本体（Behavior）のIDリスト */
-  bodies: string[] = [];
+  /** パラメータ方向のマッピング (in/out/inout) */
+  parameterDirections: Map<string, 'in' | 'out' | 'inout'> = new Map();
   
-  /** ガード条件パラメータのIDリスト */
-  guardParams: string[] = [];
-  
-  /** 事前条件のIDリスト */
-  preconditions: string[] = [];
-  
-  /** 事後条件のIDリスト */
-  postconditions: string[] = [];
-
   /**
-   * ActionDefinition コンストラクタ
-   * @param params ActionDefinitionのプロパティ
+   * アクション定義のコンストラクタ
+   * @param options アクション定義の初期化オプション
    */
-  constructor(params: ActionDefinitionParams = {}) {
-    super(params);
-    
-    this.id = params.id || uuid();
-    this.name = params.name || '';
-    this.description = params.description;
-    
-    if (params.isAbstract !== undefined) this.isAbstract = params.isAbstract;
-    if (params.parameters) this.parameters = [...params.parameters];
-    if (params.bodies) this.bodies = [...params.bodies];
-    if (params.guardParams) this.guardParams = [...params.guardParams];
-    if (params.preconditions) this.preconditions = [...params.preconditions];
-    if (params.postconditions) this.postconditions = [...params.postconditions];
-  }
-
-  /**
-   * アクションの検証
-   * @throws ValidationError 検証エラー
-   */
-  validate(): void {
-    super.validate();
-    
-    // 名前の存在確認
-    if (!this.name) {
-      throw new ValidationError(`ActionDefinition (id=${this.id})はname属性を持つ必要があります`);
-    }
-    
-    // その他のビジネスルール検証はここに追加
-    // パラメータの存在性、パラメータタイプの互換性など
-  }
-
-  /**
-   * ActionUsageへの参照を追加
-   * @param actionUsageId 追加するActionUsageのID
-   */
-  addActionUsage(actionUsageId: string): void {
-    if (!this.actionUsages.includes(actionUsageId)) {
-      this.actionUsages.push(actionUsageId);
-    }
-  }
-
-  /**
-   * ActionUsageへの参照を削除
-   * @param actionUsageId 削除するActionUsageのID
-   * @returns 削除に成功した場合はtrue
-   */
-  removeActionUsage(actionUsageId: string): boolean {
-    const index = this.actionUsages.indexOf(actionUsageId);
-    if (index >= 0) {
-      this.actionUsages.splice(index, 1);
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * パラメータを追加
-   * @param parameterId 追加するパラメータのID
-   */
-  addParameter(parameterId: string): void {
-    if (!this.parameters.includes(parameterId)) {
-      this.parameters.push(parameterId);
-    }
-  }
-
-  /**
-   * パラメータを削除
-   * @param parameterId 削除するパラメータのID
-   * @returns 削除に成功した場合はtrue
-   */
-  removeParameter(parameterId: string): boolean {
-    const index = this.parameters.indexOf(parameterId);
-    if (index >= 0) {
-      this.parameters.splice(index, 1);
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * アクション本体を追加
-   * @param bodyId 追加するアクション本体のID
-   */
-  addBody(bodyId: string): void {
-    if (!this.bodies.includes(bodyId)) {
-      this.bodies.push(bodyId);
-    }
-  }
-
-  /**
-   * アクション本体を削除
-   * @param bodyId 削除するアクション本体のID
-   * @returns 削除に成功した場合はtrue
-   */
-  removeBody(bodyId: string): boolean {
-    const index = this.bodies.indexOf(bodyId);
-    if (index >= 0) {
-      this.bodies.splice(index, 1);
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * ガード条件パラメータを追加
-   * @param paramId 追加するガード条件パラメータのID
-   */
-  addGuardParam(paramId: string): void {
-    if (!this.guardParams.includes(paramId)) {
-      this.guardParams.push(paramId);
-    }
-  }
-
-  /**
-   * ガード条件パラメータを削除
-   * @param paramId 削除するガード条件パラメータのID
-   * @returns 削除に成功した場合はtrue
-   */
-  removeGuardParam(paramId: string): boolean {
-    const index = this.guardParams.indexOf(paramId);
-    if (index >= 0) {
-      this.guardParams.splice(index, 1);
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * 事前条件を追加
-   * @param conditionId 追加する事前条件のID
-   */
-  addPrecondition(conditionId: string): void {
-    if (!this.preconditions.includes(conditionId)) {
-      this.preconditions.push(conditionId);
-    }
-  }
-
-  /**
-   * 事前条件を削除
-   * @param conditionId 削除する事前条件のID
-   * @returns 削除に成功した場合はtrue
-   */
-  removePrecondition(conditionId: string): boolean {
-    const index = this.preconditions.indexOf(conditionId);
-    if (index >= 0) {
-      this.preconditions.splice(index, 1);
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * 事後条件を追加
-   * @param conditionId 追加する事後条件のID
-   */
-  addPostcondition(conditionId: string): void {
-    if (!this.postconditions.includes(conditionId)) {
-      this.postconditions.push(conditionId);
-    }
-  }
-
-  /**
-   * 事後条件を削除
-   * @param conditionId 削除する事後条件のID
-   * @returns 削除に成功した場合はtrue
-   */
-  removePostcondition(conditionId: string): boolean {
-    const index = this.postconditions.indexOf(conditionId);
-    if (index >= 0) {
-      this.postconditions.splice(index, 1);
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * JSON形式に変換
-   * @returns JSONオブジェクト
-   */
-  toJSON(): SysML2_ActionDefinition {
-    return {
-      ...super.toJSON(),
-      __type: this.__type,
-      actionUsages: [...this.actionUsages],
-      parameters: [...this.parameters],
-      isAbstract: this.isAbstract,
-      bodies: [...this.bodies],
-      guardParams: [...this.guardParams],
-      preconditions: [...this.preconditions],
-      postconditions: [...this.postconditions]
-    };
-  }
-
-  /**
-   * JSONからActionDefinitionを復元
-   * @param json JSONオブジェクト
-   * @returns 復元されたActionDefinition
-   */
-  static fromJSON(json: SysML2_ActionDefinition): ActionDefinition {
-    const actionDef = new ActionDefinition({
-      id: json.id,
-      name: json.name,
-      description: json.description,
-      isAbstract: json.isAbstract
+  constructor(options: {
+    id?: string;
+    name?: string;
+    parameters?: string[];
+    parameterMappings?: Record<string, string>;
+    parameterDirections?: Record<string, 'in' | 'out' | 'inout'>;
+    ownerId?: string;
+    isAbstract?: boolean;
+    isVariation?: boolean;
+  }) {
+    // Definition基底クラスのコンストラクタを呼び出し
+    super({
+      id: options.id,
+      name: options.name,
+      ownerId: options.ownerId,
+      isAbstract: options.isAbstract,
+      isVariation: options.isVariation
     });
     
-    if (json.parameters) actionDef.parameters = [...json.parameters];
-    if (json.bodies) actionDef.bodies = [...json.bodies];
-    if (json.guardParams) actionDef.guardParams = [...json.guardParams];
-    if (json.preconditions) actionDef.preconditions = [...json.preconditions];
-    if (json.postconditions) actionDef.postconditions = [...json.postconditions];
-    if (json.actionUsages) actionDef.actionUsages = [...json.actionUsages];
-
+    // パラメータリストの初期化
+    this.parameters = options.parameters || [];
+    
+    // パラメータマッピングの初期化
+    if (options.parameterMappings) {
+      Object.entries(options.parameterMappings).forEach(([key, value]) => {
+        this.parameterMappings.set(key, value);
+      });
+    }
+    
+    // パラメータ方向の初期化
+    if (options.parameterDirections) {
+      Object.entries(options.parameterDirections).forEach(([key, value]) => {
+        this.parameterDirections.set(key, value);
+      });
+    }
+    
+    // 各パラメータを特性として登録
+    this.parameters.forEach(parameterId => {
+      if (!this.ownedFeatures.includes(parameterId)) {
+        this.ownedFeatures.push(parameterId);
+      }
+    });
+    
+    // KerML制約の検証
+    try {
+      this.validate();
+    } catch (error) {
+      console.warn(`警告: ActionDefinition(id=${this.id}, name=${this.name}) の検証中にエラーが発生しました: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  
+  /**
+   * パラメータを追加する
+   * @param parameterId 追加するパラメータのID
+   * @param direction パラメータの方向（デフォルトは 'in'）
+   */
+  addParameter(parameterId: string, direction: 'in' | 'out' | 'inout' = 'in'): void {
+    if (!this.parameters.includes(parameterId)) {
+      this.parameters.push(parameterId);
+      this.parameterDirections.set(parameterId, direction);
+      
+      // Definition基底クラスの特性としても追加
+      if (!this.ownedFeatures.includes(parameterId)) {
+        this.ownedFeatures.push(parameterId);
+      }
+    }
+  }
+  
+  /**
+   * パラメータを削除する
+   * @param parameterId 削除するパラメータのID
+   * @returns 削除成功した場合はtrue、そうでなければfalse
+   */
+  removeParameter(parameterId: string): boolean {
+    const initialLength = this.parameters.length;
+    this.parameters = this.parameters.filter(id => id !== parameterId);
+    
+    // マッピングと方向情報も削除
+    this.parameterMappings.delete(parameterId);
+    this.parameterDirections.delete(parameterId);
+    
+    // Definition基底クラスからも特性を削除
+    this.removeFeature(parameterId);
+    
+    return this.parameters.length !== initialLength;
+  }
+  
+  /**
+   * パラメータ間のマッピングを設定する
+   * @param sourceId ソースパラメータID
+   * @param targetId ターゲットパラメータID
+   */
+  setParameterMapping(sourceId: string, targetId: string): void {
+    this.parameterMappings.set(sourceId, targetId);
+  }
+  
+  /**
+   * パラメータの方向を設定する
+   * @param parameterId パラメータID
+   * @param direction パラメータの方向
+   */
+  setParameterDirection(parameterId: string, direction: 'in' | 'out' | 'inout'): void {
+    this.parameterDirections.set(parameterId, direction);
+  }
+  
+  /**
+   * パラメータの方向を取得する
+   * @param parameterId パラメータID
+   * @returns パラメータの方向、設定されていない場合は 'in'
+   */
+  getParameterDirection(parameterId: string): 'in' | 'out' | 'inout' {
+    return this.parameterDirections.get(parameterId) || 'in';
+  }
+  
+  /**
+   * KerML制約およびSysML v2の制約を検証する
+   * SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.17に準拠
+   */
+  validate(): void {
+    // 親クラス（Definition）の制約を検証
+    super.validate();
+    
+    // SysML v2固有の制約検証
+    // アクション定義特有の検証ロジック
+  }
+  
+  /**
+   * アクション定義の情報をオブジェクトとして返す
+   */
+  override toObject() {
+    const baseObject = super.toObject();
+    
+    // パラメータ方向とマッピングをオブジェクトに変換
+    const parameterDirectionsObj: Record<string, 'in' | 'out' | 'inout'> = {};
+    this.parameterDirections.forEach((direction, paramId) => {
+      parameterDirectionsObj[paramId] = direction;
+    });
+    
+    const parameterMappingsObj: Record<string, string> = {};
+    this.parameterMappings.forEach((targetId, sourceId) => {
+      parameterMappingsObj[sourceId] = targetId;
+    });
+    
+    return {
+      ...baseObject,
+      parameters: [...this.parameters],
+      parameterDirections: parameterDirectionsObj,
+      parameterMappings: parameterMappingsObj
+    };
+  }
+  
+  /**
+   * JSONデータからActionDefinitionインスタンスを作成する
+   * @param json JSON形式のデータ
+   * @returns 新しいActionDefinitionインスタンス
+   */
+  static fromJSON(json: any): ActionDefinition {
+    if (!json || typeof json !== 'object') {
+      throw new Error('有効なJSONオブジェクトではありません');
+    }
+    
+    // パラメータリストの復元
+    const parameters = Array.isArray(json.parameters) ? [...json.parameters] : [];
+    
+    // パラメータ方向とマッピングの復元
+    const parameterDirections = json.parameterDirections || {};
+    const parameterMappings = json.parameterMappings || {};
+    
+    // ActionDefinitionインスタンスを作成
+    const actionDef = new ActionDefinition({
+      id: json.id || uuid(),
+      name: json.name,
+      ownerId: json.ownerId,
+      isAbstract: json.isAbstract,
+      isVariation: json.isVariation,
+      parameters,
+      parameterDirections,
+      parameterMappings
+    });
+    
+    // その他の特性を復元
+    if (Array.isArray(json.ownedFeatures)) {
+      // パラメータから追加されたIDを除外
+      const existingFeatureIds = new Set(parameters);
+      
+      // 既存のものを除外して追加
+      json.ownedFeatures.forEach((featureId: string) => {
+        if (!existingFeatureIds.has(featureId) && !actionDef.ownedFeatures.includes(featureId)) {
+          actionDef.ownedFeatures.push(featureId);
+        }
+      });
+    }
+    
     return actionDef;
+  }
+  
+  /**
+   * JSONシリアライズ用のメソッド
+   * @returns JSON形式のオブジェクト
+   */
+  toJSON(): any {
+    const obj = this.toObject();
+    return {
+      ...obj,
+      __type: 'ActionDefinition'
+    };
   }
 }
