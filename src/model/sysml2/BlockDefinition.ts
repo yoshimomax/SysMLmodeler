@@ -1,15 +1,19 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Type } from '../kerml/Type';
+import { Definition } from './Definition';
 import { Feature } from '../kerml/Feature';
 import { AttributeDefinition } from './AttributeDefinition';
 import { PortDefinition } from './PortDefinition';
+import { validateKerMLClassifier } from '../kerml/validators';
 
 /**
  * SysML v2 BlockDefinition クラス
  * SysML v2 言語仕様のブロック定義を表現する
- * @see https://www.omg.org/spec/SysML/2.0/Beta1
+ * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.6, §8.2に準拠
+ * 
+ * BlockDefinitionは、システムの構造的な型を定義するクラスです。
+ * SysML v2のBlockDefinitionは、Definitionを基底とし、属性、ポート、接続、振る舞いを含めることができます。
  */
-export class BlockDefinition extends Type {
+export class BlockDefinition extends Definition {
   /** このブロックが持つ属性定義のリスト */
   attributes: AttributeDefinition[] = [];
   
@@ -43,19 +47,24 @@ export class BlockDefinition extends Type {
     id?: string;
     isAbstract?: boolean;
     isSingleton?: boolean;
+    isVariation?: boolean;
     ownerId?: string;
+    usageReferences?: string[];
   }) {
-    // Typeクラスのコンストラクタ呼び出し
+    // Definitionクラスのコンストラクタ呼び出し
     super({
       id: options.id,
       name: options.name,
       ownerId: options.ownerId,
-      isAbstract: options.isAbstract
+      isAbstract: options.isAbstract,
+      isVariation: options.isVariation,
+      stereotype: options.stereotype || 'block',
+      usageReferences: options.usageReferences
     });
     
     this.attributes = options.attributes || [];
     this.ports = options.ports || [];
-    this.stereotype = options.stereotype;
+    this.stereotype = options.stereotype || 'block';
     
     if (options.isAbstract !== undefined) {
       this.isAbstract = options.isAbstract;
@@ -71,11 +80,22 @@ export class BlockDefinition extends Type {
         (attr as any).ownerBlock = this;
       }
       attr.ownerId = this.id;
+      // 特性として登録
+      this.addFeature(attr);
     });
     
     this.ports.forEach(port => {
       port.ownerId = this.id;
+      // 特性として登録
+      this.addFeature(port);
     });
+    
+    // KerML制約の検証
+    try {
+      this.validate();
+    } catch (error) {
+      console.warn(`警告: BlockDefinition(id=${this.id}, name=${this.name}) の検証中にエラーが発生しました: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
   
   /**
