@@ -18,7 +18,7 @@ export interface SysML2_Element extends KerML_Element {
  * すべての Definition 要素の基底となる
  */
 export interface SysML2_Definition extends SysML2_Element, KerML_Classifier {
-  __type: string;       // サブクラスがオーバーライドできるよう文字列型に変更
+  __type: any;       // サブクラスがオーバーライドできるよう any型に変更
   isAbstract?: boolean;
   isVariation?: boolean;
   ownedFeatures?: string[];
@@ -29,7 +29,7 @@ export interface SysML2_Definition extends SysML2_Element, KerML_Classifier {
  * すべての Usage 要素の基底となる
  */
 export interface SysML2_Usage extends SysML2_Element, KerML_Feature {
-  __type: string;       // サブクラスがオーバーライドできるよう文字列型に変更
+  __type: any;       // サブクラスがオーバーライドできるよう any型に変更
   definition?: string;  // 参照する Definition の ID
   isVariation?: boolean;
   nestedUsages?: string[];
@@ -39,7 +39,7 @@ export interface SysML2_Usage extends SysML2_Element, KerML_Feature {
  * SysML2 PartDefinition インターフェース
  */
 export interface SysML2_PartDefinition extends SysML2_Definition {
-  __type: 'PartDefinition';
+  __type: 'PartDefinition' | string;
   isHuman?: boolean;
   partUsages?: string[];
   interfaceDefinitions?: string[];
@@ -57,7 +57,7 @@ export interface SysML2_PartDefinition extends SysML2_Definition {
  * SysML2 PartUsage インターフェース
  */
 export interface SysML2_PartUsage extends SysML2_Usage {
-  __type: 'PartUsage';
+  __type: 'PartUsage' | string;
   isHuman?: boolean;
   partDefinition?: string;
   nestedParts?: string[];
@@ -169,6 +169,20 @@ export interface SysML2_StateDefinition extends SysML2_Definition {
 }
 
 /**
+ * SysML2 TransitionDefinition インターフェース
+ * 状態間の遷移を定義する
+ */
+export interface SysML2_TransitionDefinition extends SysML2_Definition {
+  __type: 'TransitionDefinition';
+  transitionUsages?: string[];
+  sourceStateType?: string;  // 遷移元状態の型
+  targetStateType?: string;  // 遷移先状態の型
+  guardType?: string;        // ガード条件の型
+  triggerType?: string;      // トリガーの型
+  effectType?: string;       // エフェクトアクションの型
+}
+
+/**
  * SysML2 StateUsage インターフェース
  */
 export interface SysML2_StateUsage extends SysML2_Usage {
@@ -180,6 +194,22 @@ export interface SysML2_StateUsage extends SysML2_Usage {
   exitActions?: string[];
   transitions?: string[];
   nestedStates?: string[];
+}
+
+/**
+ * SysML2 TransitionUsage インターフェース
+ * 状態間の遷移を表す
+ */
+export interface SysML2_TransitionUsage extends SysML2_Usage {
+  __type: 'TransitionUsage';
+  transitionDefinition?: string;
+  sourceStateId?: string;
+  targetStateId?: string;
+  guard?: string;        // 遷移条件
+  trigger?: string;      // 遷移を引き起こすトリガー（イベント）
+  effect?: string;       // 遷移時に実行するアクション
+  priority?: number;     // 遷移の優先度
+  isElse?: boolean;      // else遷移かどうか
 }
 
 /**
