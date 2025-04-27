@@ -29,6 +29,12 @@ export class Type {
   /** 型の説明 */
   description?: string;
   
+  /** 抽象型かどうか */
+  isAbstract: boolean = false;
+  
+  /** 共役型かどうか */
+  isConjugated: boolean = false;
+  
   /**
    * Type コンストラクタ
    * @param options 初期化オプション
@@ -40,13 +46,24 @@ export class Type {
     shortName?: string;
     qualifiedName?: string;
     description?: string;
-  }) {
+    isAbstract?: boolean;
+    isConjugated?: boolean;
+    features?: any[];
+  } = {}) {
     this.id = options.id || uuid();
     this.name = options.name || `Type_${this.id.slice(0, 8)}`;
     this.ownerId = options.ownerId;
     this.shortName = options.shortName;
     this.qualifiedName = options.qualifiedName;
     this.description = options.description;
+    
+    if (options.isAbstract !== undefined) {
+      this.isAbstract = options.isAbstract;
+    }
+    
+    if (options.isConjugated !== undefined) {
+      this.isConjugated = options.isConjugated;
+    }
   }
   
   /**
@@ -62,7 +79,9 @@ export class Type {
         ownerId: this.ownerId,
         shortName: this.shortName,
         qualifiedName: this.qualifiedName,
-        description: this.description
+        description: this.description,
+        isAbstract: this.isAbstract,
+        isConjugated: this.isConjugated
       }
     };
   }
@@ -99,7 +118,9 @@ export class Type {
       ownerId: json.ownerId,
       shortName: json.shortName,
       qualifiedName: json.qualifiedName,
-      description: json.description
+      description: json.description,
+      isAbstract: json.isAbstract,
+      isConjugated: json.isConjugated
     });
     
     return type;
@@ -117,8 +138,8 @@ export class Type {
       ...obj.properties,
       __type: 'Type'
     };
-    // propertiesプロパティは削除
-    delete result.properties;
-    return result;
+    // propertiesプロパティを除外した新しいオブジェクトを作成
+    const { properties, ...resultWithoutProperties } = result;
+    return resultWithoutProperties;
   }
 }

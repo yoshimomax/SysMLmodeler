@@ -49,6 +49,9 @@ export class Feature extends Type {
   /** 型参照ID */
   private _typeId?: string;
   
+  /** この Feature に属する特性のリスト */
+  features: Feature[] = [];
+  
   /**
    * Feature コンストラクタ
    * @param options 初期化オプション
@@ -138,6 +141,19 @@ export class Feature extends Type {
   }
   
   /**
+   * 子特性を追加する
+   * @param feature 追加する特性
+   */
+  addFeature(feature: Feature): void {
+    // 同じIDの特性が既に存在していないか確認
+    if (!this.features.some(f => f.id === feature.id)) {
+      this.features.push(feature);
+      // 所有者IDを設定
+      feature.ownerId = this.id;
+    }
+  }
+  
+  /**
    * 共通オブジェクト形式に変換（派生クラスでのオーバーライド用）
    * @returns FeatureObject 構造
    */
@@ -187,9 +203,9 @@ export class Feature extends Type {
       type: this._typeId,
       redefinitions: this.redefinitionIds.length > 0 ? this.redefinitionIds : undefined
     };
-    // propertiesプロパティは削除
-    delete result.properties;
-    return result as KerML_Feature;
+    // propertiesプロパティを除外した新しいオブジェクトを作成
+    const { properties, ...resultWithoutProperties } = result;
+    return resultWithoutProperties as KerML_Feature;
   }
   
   /**
