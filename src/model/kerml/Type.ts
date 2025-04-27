@@ -8,6 +8,7 @@
  */
 
 import { v4 as uuid } from 'uuid';
+import { FeatureObject } from './Feature';
 
 export class Type {
   /** 型の一意識別子 */
@@ -50,15 +51,19 @@ export class Type {
   
   /**
    * 型の情報をオブジェクトとして返す
+   * @returns FeatureObject 構造
    */
-  toObject() {
+  toObject(): FeatureObject {
     return {
       id: this.id,
       name: this.name,
-      ownerId: this.ownerId,
-      shortName: this.shortName,
-      qualifiedName: this.qualifiedName,
-      description: this.description
+      type: 'Type',
+      properties: {
+        ownerId: this.ownerId,
+        shortName: this.shortName,
+        qualifiedName: this.qualifiedName,
+        description: this.description
+      }
     };
   }
   
@@ -106,9 +111,14 @@ export class Type {
    */
   toJSON(): any {
     const obj = this.toObject();
-    return {
+    // obj.properties内のすべてのプロパティをトップレベルに移動
+    const result = {
       ...obj,
+      ...obj.properties,
       __type: 'Type'
     };
+    // propertiesプロパティは削除
+    delete result.properties;
+    return result;
   }
 }

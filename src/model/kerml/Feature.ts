@@ -3,6 +3,17 @@ import { KerML_Feature } from './interfaces';
 import { Type } from './Type';
 
 /**
+ * Feature オブジェクトのインターフェース
+ * Feature クラスとその派生クラスの共通オブジェクト構造を定義
+ */
+export interface FeatureObject {
+  id: string;
+  name?: string;
+  type: string;
+  properties: Record<string, any>;
+}
+
+/**
  * KerML Feature クラス
  * KerML メタモデルの特性（Feature）概念を表現する
  * OMG仕様：ptc/2025-02-02, KerML v1.0 Beta3
@@ -127,12 +138,43 @@ export class Feature extends Type {
   }
   
   /**
+   * 共通オブジェクト形式に変換（派生クラスでのオーバーライド用）
+   * @returns FeatureObject 構造
+   */
+  toObject(): FeatureObject {
+    return {
+      id: this.id,
+      name: this.name,
+      type: 'Feature',
+      properties: {
+        isUnique: this.isUnique,
+        isOrdered: this.isOrdered,
+        isComposite: this.isComposite,
+        isPortion: this.isPortion,
+        isReadOnly: this.isReadOnly,
+        isDerived: this.isDerived,
+        isEnd: this.isEnd,
+        direction: this.direction,
+        typeId: this._typeId,
+        redefinitionIds: [...this.redefinitionIds],
+        ownerId: this.ownerId,
+        shortName: this.shortName,
+        qualifiedName: this.qualifiedName,
+        description: this.description
+      }
+    };
+  }
+
+  /**
    * JSON形式に変換
    * @returns JSON表現
    */
   toJSON(): KerML_Feature {
-    return {
-      ...super.toJSON(),
+    const obj = this.toObject();
+    // obj.properties内のすべてのプロパティをトップレベルに移動
+    const result = {
+      ...obj,
+      ...obj.properties,
       __type: 'Feature',
       isUnique: this.isUnique,
       isOrdered: this.isOrdered,
@@ -144,7 +186,10 @@ export class Feature extends Type {
       direction: this.direction,
       type: this._typeId,
       redefinitions: this.redefinitionIds.length > 0 ? this.redefinitionIds : undefined
-    } as KerML_Feature;
+    };
+    // propertiesプロパティは削除
+    delete result.properties;
+    return result as KerML_Feature;
   }
   
   /**

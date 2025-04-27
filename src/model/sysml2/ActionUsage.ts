@@ -7,7 +7,7 @@
  */
 
 import { v4 as uuid } from 'uuid';
-import { Feature } from '../kerml/Feature';
+import { Feature, FeatureObject } from '../kerml/Feature';
 
 export class ActionUsage extends Feature {
   /** このアクションの後続アクションのID配列 */
@@ -120,9 +120,10 @@ export class ActionUsage extends Feature {
   
   /**
    * アクション使用の情報をオブジェクトとして返す
+   * @returns FeatureObject 構造
    */
-  override toObject() {
-    const baseObject = super.toJSON();
+  override toObject(): FeatureObject {
+    const baseObject = super.toObject();
     
     // パラメータ値のマッピングをオブジェクトに変換
     const parameterValuesObj: Record<string, any> = {};
@@ -132,11 +133,15 @@ export class ActionUsage extends Feature {
     
     return {
       ...baseObject,
-      actionDefinition: this.actionDefinition,
-      successions: [...this.successions],
-      parameters: [...this.parameters],
-      parameterValues: parameterValuesObj,
-      guard: this.guard
+      type: 'ActionUsage',
+      properties: {
+        ...baseObject.properties,
+        actionDefinition: this.actionDefinition,
+        successions: [...this.successions],
+        parameters: [...this.parameters],
+        parameterValues: parameterValuesObj,
+        guard: this.guard
+      }
     };
   }
   
