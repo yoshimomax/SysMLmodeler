@@ -340,13 +340,13 @@ const DiagramEditor: React.FC = () => {
           const sysmlId = cell.attributes.sysmlId;
           if (sysmlId) {
             sysmlStore.setSelectedRelationship(sysmlId);
-            console.log('Selected relationship:', sysmlStore.getState().selectedRelationshipId);
+            console.log('Selected relationship:', sysmlId);
           }
         } else {
           const sysmlId = cell.attributes.sysmlId;
           if (sysmlId) {
             sysmlStore.setSelectedElement(sysmlId);
-            console.log('Selected element:', sysmlStore.getState().selectedElementId);
+            console.log('Selected element:', sysmlId);
           }
         }
       });
@@ -361,7 +361,7 @@ const DiagramEditor: React.FC = () => {
           if (sysmlId) {
             // 編集モードを開始（必要に応じてダイアログ表示など）
             sysmlStore.setSelectedElement(sysmlId);
-            console.log('Editing element:', sysmlStore.getState().selectedElementId);
+            console.log('Editing element:', sysmlId);
           }
         }
       });
@@ -403,6 +403,7 @@ const DiagramEditor: React.FC = () => {
             link.attributes.sysmlId = relId;
           } else if (sysmlType === 'ConnectionUsage') {
             const relId = sysmlStore.addRelationship({
+              id: uuidv4(),
               type: 'ConnectionUsage',
               sourceId,
               targetId,
@@ -411,6 +412,7 @@ const DiagramEditor: React.FC = () => {
             link.attributes.sysmlId = relId;
           } else if (sysmlType === 'Transition') {
             const relId = sysmlStore.addRelationship({
+              id: uuidv4(),
               type: 'Transition',
               sourceId,
               targetId,
@@ -841,92 +843,94 @@ const DiagramEditor: React.FC = () => {
         ></div>
       </div>
       
-      <style jsx>{`
-        .diagram-editor {
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-          overflow: hidden;
-        }
-        
-        .diagram-toolbar {
-          padding: 8px;
-          background-color: #f0f0f0;
-          border-bottom: 1px solid #ddd;
-          display: flex;
-          gap: 8px;
-        }
-        
-        .diagram-toolbar button {
-          padding: 6px 12px;
-          border: 1px solid #ccc;
-          background-color: white;
-          border-radius: 4px;
-          cursor: pointer;
-        }
-        
-        .diagram-toolbar button:hover {
-          background-color: #e9e9e9;
-        }
-        
-        .editor-content {
-          display: flex;
-          flex: 1;
-          overflow: hidden;
-        }
-        
-        .palette {
-          width: 200px;
-          border-right: 1px solid #ddd;
-          padding: 16px;
-          background-color: #fafafa;
-          overflow-y: auto;
-        }
-        
-        .palette h3 {
-          margin-top: 0;
-          margin-bottom: 12px;
-          font-size: 14px;
-          color: #333;
-        }
-        
-        .palette-items {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          margin-bottom: 20px;
-        }
-        
-        .palette-item {
-          display: flex;
-          align-items: center;
-          padding: 8px;
-          border: 1px solid #ddd;
-          border-radius: 4px;
-          background-color: white;
-          cursor: grab;
-          user-select: none;
-        }
-        
-        .palette-item:hover {
-          background-color: #f5f5f5;
-        }
-        
-        .item-icon {
-          margin-right: 8px;
-          font-size: 16px;
-        }
-        
-        .item-label {
-          font-size: 13px;
-        }
-        
-        .paper-container {
-          flex: 1;
-          overflow: auto;
-          background-color: #F8F9FA;
-        }
-      `}</style>
+      <style>
+        {`
+          .diagram-editor {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+          }
+          
+          .diagram-toolbar {
+            padding: 8px;
+            background-color: #f0f0f0;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            gap: 8px;
+          }
+          
+          .diagram-toolbar button {
+            padding: 6px 12px;
+            border: 1px solid #ccc;
+            background-color: white;
+            border-radius: 4px;
+            cursor: pointer;
+          }
+          
+          .diagram-toolbar button:hover {
+            background-color: #e9e9e9;
+          }
+          
+          .editor-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+          }
+          
+          .palette {
+            width: 200px;
+            border-right: 1px solid #ddd;
+            padding: 16px;
+            background-color: #fafafa;
+            overflow-y: auto;
+          }
+          
+          .palette h3 {
+            margin-top: 0;
+            margin-bottom: 12px;
+            font-size: 14px;
+            color: #333;
+          }
+          
+          .palette-items {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 20px;
+          }
+          
+          .palette-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: white;
+            cursor: grab;
+            user-select: none;
+          }
+          
+          .palette-item:hover {
+            background-color: #f5f5f5;
+          }
+          
+          .item-icon {
+            margin-right: 8px;
+            font-size: 16px;
+          }
+          
+          .item-label {
+            font-size: 13px;
+          }
+          
+          .paper-container {
+            flex: 1;
+            overflow: auto;
+            background-color: #F8F9FA;
+          }
+        `}
+      </style>
     </div>
   );
 };

@@ -352,149 +352,151 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({ selectedElementId }) => {
         </div>
       )}
       
-      <style jsx>{`
-        .property-panel {
-          background-color: #f5f5f5;
-          border-left: 1px solid #ddd;
-          height: 100%;
-          transition: width 0.3s ease;
-          overflow: hidden;
-        }
-        
-        .expanded {
-          width: 100%;
-        }
-        
-        .collapsed {
-          width: 40px;
-        }
-        
-        .panel-header {
-          background-color: #e0e0e0;
-          padding: 10px 15px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          cursor: pointer;
-          user-select: none;
-        }
-        
-        .panel-header h2 {
-          margin: 0;
-          font-size: 16px;
-          font-weight: 500;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        
-        .toggle-icon {
-          font-size: 12px;
-        }
-        
-        .panel-content {
-          padding: 15px;
-          overflow-y: auto;
-          max-height: calc(100% - 40px);
-        }
-        
-        .property-section {
-          margin-bottom: 20px;
-        }
-        
-        .property-section h3 {
-          margin-top: 0;
-          margin-bottom: 10px;
-          font-size: 14px;
-          color: #333;
-          border-bottom: 1px solid #ddd;
-          padding-bottom: 5px;
-        }
-        
-        .property-control {
-          margin-bottom: 10px;
-        }
-        
-        .property-control label {
-          display: block;
-          margin-bottom: 5px;
-          font-size: 12px;
-          color: #555;
-        }
-        
-        .property-control input[type="text"],
-        .property-control input[type="number"],
-        .property-control textarea,
-        .property-control select {
-          width: 100%;
-          padding: 6px 8px;
-          border: 1px solid #ccc;
-          border-radius: 4px;
-          font-size: 13px;
-        }
-        
-        .property-control textarea {
-          resize: vertical;
-        }
-        
-        .property-control input[type="checkbox"] {
-          margin-right: 5px;
-        }
-        
-        .property-actions {
-          margin-top: 20px;
-          text-align: right;
-        }
-        
-        .property-actions button {
-          padding: 8px 12px;
-          background-color: #4285f4;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          font-size: 13px;
-          cursor: pointer;
-        }
-        
-        .property-actions button:hover {
-          background-color: #3367d6;
-        }
-        
-        .no-selection {
-          color: #888;
-          text-align: center;
-          margin-top: 40px;
-        }
-        
-        .no-props {
-          color: #888;
-          font-style: italic;
-          font-size: 13px;
-        }
-        
-        .relationship-endpoints {
-          margin-bottom: 20px;
-        }
-        
-        .endpoints-container {
-          display: flex;
-          align-items: center;
-          background-color: #f0f0f0;
-          padding: 10px;
-          border-radius: 4px;
-        }
-        
-        .endpoint {
-          flex: 1;
-          font-size: 12px;
-          padding: 5px;
-        }
-        
-        .endpoint-arrow {
-          padding: 0 10px;
-          color: #555;
-        }
-      `}</style>
+      <style>
+        {`
+          .property-panel {
+            background-color: #f5f5f5;
+            border-left: 1px solid #ddd;
+            height: 100%;
+            transition: width 0.3s ease;
+            overflow: hidden;
+          }
+          
+          .expanded {
+            width: 100%;
+          }
+          
+          .collapsed {
+            width: 40px;
+          }
+          
+          .panel-header {
+            background-color: #e0e0e0;
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+          }
+          
+          .panel-header h2 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          
+          .toggle-icon {
+            font-size: 12px;
+          }
+          
+          .panel-content {
+            padding: 15px;
+            overflow-y: auto;
+            max-height: calc(100% - 40px);
+          }
+          
+          .property-section {
+            margin-bottom: 20px;
+          }
+          
+          .property-section h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #333;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+          }
+          
+          .property-control {
+            margin-bottom: 10px;
+          }
+          
+          .property-control label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            color: #555;
+          }
+          
+          .property-control input[type="text"],
+          .property-control input[type="number"],
+          .property-control textarea,
+          .property-control select {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 13px;
+          }
+          
+          .property-control textarea {
+            resize: vertical;
+          }
+          
+          .property-control input[type="checkbox"] {
+            margin-right: 5px;
+          }
+          
+          .property-actions {
+            margin-top: 20px;
+            text-align: right;
+          }
+          
+          .property-actions button {
+            padding: 8px 12px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+          }
+          
+          .property-actions button:hover {
+            background-color: #3367d6;
+          }
+          
+          .no-selection {
+            color: #888;
+            text-align: center;
+            margin-top: 40px;
+          }
+          
+          .no-props {
+            color: #888;
+            font-style: italic;
+            font-size: 13px;
+          }
+          
+          .relationship-endpoints {
+            margin-bottom: 20px;
+          }
+          
+          .endpoints-container {
+            display: flex;
+            align-items: center;
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+          }
+          
+          .endpoint {
+            flex: 1;
+            font-size: 12px;
+            padding: 5px;
+          }
+          
+          .endpoint-arrow {
+            padding: 0 10px;
+            color: #555;
+          }
+        `}
+      </style>
     </div>
   );
 };
