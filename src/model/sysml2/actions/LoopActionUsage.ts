@@ -8,6 +8,7 @@
 
 import { v4 as uuid } from 'uuid';
 import { ActionUsage } from '../ActionUsage';
+import { FeatureObject } from '../../kerml/Feature';
 
 export class LoopActionUsage extends ActionUsage {
   /** 繰り返し種別（while, until, forEach） */
@@ -124,16 +125,21 @@ export class LoopActionUsage extends ActionUsage {
   
   /**
    * ループアクションの情報をオブジェクトとして返す
+   * @returns FeatureObject 構造
    */
-  override toObject() {
+  override toObject(): FeatureObject {
     const baseObject = super.toObject();
     return {
       ...baseObject,
-      loopType: this.loopType,
-      condition: this.condition,
-      maxIterations: this.maxIterations,
-      bodyActions: [...this.bodyActions],
-      setupParameterId: this.setupParameterId
+      type: 'LoopActionUsage',
+      properties: {
+        ...baseObject.properties,
+        loopType: this.loopType,
+        condition: this.condition,
+        maxIterations: this.maxIterations,
+        bodyActions: [...this.bodyActions],
+        setupParameterId: this.setupParameterId
+      }
     };
   }
   
@@ -179,9 +185,14 @@ export class LoopActionUsage extends ActionUsage {
    */
   toJSON(): any {
     const obj = this.toObject();
-    return {
+    // obj.properties内のすべてのプロパティをトップレベルに移動
+    const result = {
       ...obj,
+      ...obj.properties,
       __type: 'LoopActionUsage'
     };
+    // propertiesプロパティを除外した新しいオブジェクトを作成
+    const { properties, ...resultWithoutProperties } = result;
+    return resultWithoutProperties;
   }
 }

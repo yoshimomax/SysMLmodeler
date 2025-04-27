@@ -152,17 +152,22 @@ export class IfActionUsage extends ActionUsage {
   
   /**
    * 条件分岐アクションの情報をオブジェクトとして返す
+   * @returns FeatureObject 構造
    */
-  override toObject() {
+  override toObject(): FeatureObject {
     const baseObject = super.toObject();
     return {
       ...baseObject,
-      branches: this.branches.map(branch => ({
-        id: branch.id,
-        condition: branch.condition,
-        actions: [...branch.actions],
-        isElse: branch.isElse
-      }))
+      type: 'IfActionUsage',
+      properties: {
+        ...baseObject.properties,
+        branches: this.branches.map(branch => ({
+          id: branch.id,
+          condition: branch.condition,
+          actions: [...branch.actions],
+          isElse: branch.isElse
+        }))
+      }
     };
   }
   
@@ -209,9 +214,14 @@ export class IfActionUsage extends ActionUsage {
    */
   toJSON(): any {
     const obj = this.toObject();
-    return {
+    // obj.properties内のすべてのプロパティをトップレベルに移動
+    const result = {
       ...obj,
+      ...obj.properties,
       __type: 'IfActionUsage'
     };
+    // propertiesプロパティを除外した新しいオブジェクトを作成
+    const { properties, ...resultWithoutProperties } = result;
+    return resultWithoutProperties;
   }
 }
