@@ -1,131 +1,146 @@
-import { v4 as uuidv4 } from 'uuid';
-import { Usage } from './Usage';
-import { SysML2_ConnectionUsage } from './interfaces';
-
 /**
- * SysML v2のConnectionUsageクラス
- * システム要素間の接続の使用を表す
- * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.9に準拠
+ * SysML v2 ConnectionUsage クラス
+ * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §9.10に準拠
+ * 
+ * ConnectionUsageは、システム内の要素間の接続の使用を表現するクラスです。
+ * 物理的接続、データフロー、依存関係などを表現します。
  */
-export class ConnectionUsage extends Usage {
-  /** 参照するConnectionDefinitionのID */
+
+import { v4 as uuid } from 'uuid';
+import { Feature } from '../kerml/Feature';
+import { FeatureObject } from '../kerml/Feature';
+
+export class ConnectionUsage extends Feature {
+  /** 接続元エンドID */
+  sourceEndId: string;
+  
+  /** 接続先エンドID */
+  targetEndId: string;
+  
+  /** 接続定義ID（オプション） */
   connectionDefinitionId?: string;
   
-  /** 終端特性のIDリスト */
-  endFeatures: string[];
+  /** 伝達アイテムの型（オプション） */
+  itemType?: string;
   
-  /** 接続元の型ID */
-  sourceTypeId?: string;
-  
-  /** 接続先の型ID */
-  targetTypeId?: string;
+  /** 接続パス上の中間点（UI表示用） */
+  vertices?: { x: number; y: number }[] = [];
   
   /**
    * ConnectionUsage コンストラクタ
-   * @param params 初期化パラメータ
+   * @param options 初期化オプション
    */
-  constructor(params: {
+  constructor(options: {
     id?: string;
-    ownerId?: string;
     name?: string;
-    definitionId?: string;
+    ownerId?: string;
+    description?: string;
+    sourceEndId: string;
+    targetEndId: string;
     connectionDefinitionId?: string;
-    isVariation?: boolean;
-    stereotype?: string;
-    nestedUsages?: string[] | Usage[];
-    endFeatures?: string[];
-    sourceTypeId?: string;
-    targetTypeId?: string;
+    itemType?: string;
+    vertices?: { x: number; y: number }[];
+    isAbstract?: boolean;
   }) {
     super({
-      id: params.id || uuidv4(),
-      ownerId: params.ownerId,
-      name: params.name,
-      definitionId: params.definitionId || params.connectionDefinitionId,
-      isVariation: params.isVariation,
-      stereotype: params.stereotype,
-      nestedUsages: params.nestedUsages
+      id: options.id,
+      name: options.name,
+      ownerId: options.ownerId,
+      description: options.description,
+      isAbstract: options.isAbstract
     });
     
-    this.connectionDefinitionId = params.connectionDefinitionId || params.definitionId;
-    this.endFeatures = params.endFeatures || [];
-    this.sourceTypeId = params.sourceTypeId;
-    this.targetTypeId = params.targetTypeId;
-  }
-  
-  /**
-   * 終端特性を追加する
-   * @param featureId 追加する特性のID
-   */
-  addEndFeature(featureId: string): void {
-    if (!this.endFeatures.includes(featureId)) {
-      this.endFeatures.push(featureId);
+    this.sourceEndId = options.sourceEndId;
+    this.targetEndId = options.targetEndId;
+    this.connectionDefinitionId = options.connectionDefinitionId;
+    this.itemType = options.itemType;
+    
+    if (options.vertices) {
+      this.vertices = [...options.vertices];
     }
   }
   
   /**
-   * 終端特性を削除する
-   * @param featureId 削除する特性のID
-   * @returns 削除に成功した場合はtrue、見つからない場合はfalse
+   * 中間点を設定する
+   * @param vertices 中間点の配列
    */
-  removeEndFeature(featureId: string): boolean {
-    const index = this.endFeatures.indexOf(featureId);
-    if (index !== -1) {
-      this.endFeatures.splice(index, 1);
-      return true;
-    }
-    return false;
+  setVertices(vertices: { x: number; y: number }[]): void {
+    this.vertices = [...vertices];
   }
   
   /**
-   * JSONオブジェクトに変換する
-   * @returns SysML2_ConnectionUsage形式のJSONオブジェクト
+   * 伝達アイテムの型を設定する
+   * @param itemType アイテムの型
    */
-  toJSON(): SysML2_ConnectionUsage {
+  setItemType(itemType: string): void {
+    this.itemType = itemType;
+  }
+  
+  /**
+   * 接続の情報をオブジェクトとして返す
+   * @returns FeatureObject 構造
+   */
+  override toObject(): FeatureObject {
+    const baseObject = super.toObject();
     return {
-      ...super.toJSON(),
-      __type: 'ConnectionUsage',
-      connectionDefinition: this.connectionDefinitionId,
-      endFeatures: this.endFeatures,
-      sourceType: this.sourceTypeId,
-      targetType: this.targetTypeId
+      ...baseObject,
+      type: 'ConnectionUsage',
+      properties: {
+        ...baseObject.properties,
+        sourceEndId: this.sourceEndId,
+        targetEndId: this.targetEndId,
+        connectionDefinitionId: this.connectionDefinitionId,
+        itemType: this.itemType,
+        vertices: this.vertices ? [...this.vertices] : undefined
+      }
     };
   }
   
   /**
-   * JSONオブジェクトからConnectionUsageインスタンスを生成する
-   * @param json 変換元のJSONオブジェクト
-   * @returns ConnectionUsageインスタンス
+   * JSONシリアライズ用のメソッド
+   * @returns JSON形式のオブジェクト
    */
-  static fromJSON(json: SysML2_ConnectionUsage): ConnectionUsage {
-    return new ConnectionUsage({
-      id: json.id,
-      ownerId: json.ownerId,
+  override toJSON(): any {
+    const obj = this.toObject();
+    // obj.properties内のすべてのプロパティをトップレベルに移動
+    const result = {
+      ...obj,
+      ...obj.properties,
+      __type: 'ConnectionUsage'
+    };
+    // propertiesプロパティを除外した新しいオブジェクトを作成
+    const { properties, ...resultWithoutProperties } = result;
+    return resultWithoutProperties;
+  }
+  
+  /**
+   * JSONデータからConnectionUsageインスタンスを作成する
+   * @param json JSON形式のデータ
+   * @returns 新しいConnectionUsageインスタンス
+   */
+  static fromJSON(json: any): ConnectionUsage {
+    if (!json || typeof json !== 'object') {
+      throw new Error('有効なJSONオブジェクトではありません');
+    }
+    
+    if (!json.sourceEndId || !json.targetEndId) {
+      throw new Error('接続元・接続先のエンドIDが指定されていません');
+    }
+    
+    // ConnectionUsageインスタンスを作成
+    const connectionUsage = new ConnectionUsage({
+      id: json.id || uuid(),
       name: json.name,
-      definitionId: json.definition,
-      connectionDefinitionId: json.connectionDefinition,
-      isVariation: json.isVariation,
-      stereotype: json.stereotype,
-      nestedUsages: json.nestedUsages,
-      endFeatures: json.endFeatures,
-      sourceTypeId: json.sourceType,
-      targetTypeId: json.targetType
+      ownerId: json.ownerId,
+      description: json.description,
+      sourceEndId: json.sourceEndId,
+      targetEndId: json.targetEndId,
+      connectionDefinitionId: json.connectionDefinitionId,
+      itemType: json.itemType,
+      vertices: json.vertices,
+      isAbstract: json.isAbstract
     });
-  }
-  
-  /**
-   * オブジェクトをプレーンなJavaScriptオブジェクトに変換する（UI表示用）
-   * @returns プレーンなJavaScriptオブジェクト
-   */
-  toObject() {
-    return {
-      id: this.id,
-      name: this.name,
-      stereotype: this.stereotype || 'connection',
-      definitionId: this.connectionDefinitionId,
-      endFeatures: this.endFeatures,
-      sourceTypeId: this.sourceTypeId,
-      targetTypeId: this.targetTypeId
-    };
+    
+    return connectionUsage;
   }
 }

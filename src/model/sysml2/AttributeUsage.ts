@@ -1,21 +1,18 @@
 /**
- * SysML v2 PortUsage クラス
- * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §9.7に準拠
+ * SysML v2 AttributeUsage クラス
+ * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §8.2.3に準拠
  * 
- * PortUsageは、システム間の相互作用ポイントとして機能する特性を表現するクラスです。
- * データ、シグナル、物理的相互作用などの流れを可能にします。
+ * AttributeUsageは、値の保持と参照のための特性を表現するクラスです。
+ * システム内での属性の使用を表します。
  */
 
 import { v4 as uuid } from 'uuid';
 import { Feature } from '../kerml/Feature';
 import { FeatureObject } from '../kerml/Feature';
 
-export class PortUsage extends Feature {
-  /** UI上の位置情報（オプション） */
-  position?: { x: number; y: number };
-  
+export class AttributeUsage extends Feature {
   /**
-   * PortUsage コンストラクタ
+   * AttributeUsage コンストラクタ
    * @param options 初期化オプション
    */
   constructor(options: {
@@ -23,10 +20,10 @@ export class PortUsage extends Feature {
     name?: string;
     ownerId?: string;
     description?: string;
+    value?: any;
     typeId?: string;
-    direction?: 'in' | 'out' | 'inout';
+    isReadOnly?: boolean;
     isAbstract?: boolean;
-    position?: { x: number; y: number };
   } = {}) {
     super({
       id: options.id,
@@ -34,34 +31,22 @@ export class PortUsage extends Feature {
       ownerId: options.ownerId,
       description: options.description,
       typeId: options.typeId,
-      direction: options.direction,
+      isReadOnly: options.isReadOnly,
       isAbstract: options.isAbstract
     });
-    
-    this.position = options.position;
   }
   
   /**
-   * ポート位置を設定する
-   * @param x X座標
-   * @param y Y座標
-   */
-  setPosition(x: number, y: number): void {
-    this.position = { x, y };
-  }
-  
-  /**
-   * ポートの情報をオブジェクトとして返す
+   * 属性の情報をオブジェクトとして返す
    * @returns FeatureObject 構造
    */
   override toObject(): FeatureObject {
     const baseObject = super.toObject();
     return {
       ...baseObject,
-      type: 'PortUsage',
+      type: 'AttributeUsage',
       properties: {
-        ...baseObject.properties,
-        position: this.position
+        ...baseObject.properties
       }
     };
   }
@@ -76,7 +61,7 @@ export class PortUsage extends Feature {
     const result = {
       ...obj,
       ...obj.properties,
-      __type: 'PortUsage'
+      __type: 'AttributeUsage'
     };
     // propertiesプロパティを除外した新しいオブジェクトを作成
     const { properties, ...resultWithoutProperties } = result;
@@ -84,27 +69,26 @@ export class PortUsage extends Feature {
   }
   
   /**
-   * JSONデータからPortUsageインスタンスを作成する
+   * JSONデータからAttributeUsageインスタンスを作成する
    * @param json JSON形式のデータ
-   * @returns 新しいPortUsageインスタンス
+   * @returns 新しいAttributeUsageインスタンス
    */
-  static fromJSON(json: any): PortUsage {
+  static fromJSON(json: any): AttributeUsage {
     if (!json || typeof json !== 'object') {
       throw new Error('有効なJSONオブジェクトではありません');
     }
     
-    // PortUsageインスタンスを作成
-    const portUsage = new PortUsage({
+    // AttributeUsageインスタンスを作成
+    const attributeUsage = new AttributeUsage({
       id: json.id || uuid(),
       name: json.name,
       ownerId: json.ownerId,
       description: json.description,
       typeId: json.type,
-      direction: json.direction,
-      isAbstract: json.isAbstract,
-      position: json.position
+      isReadOnly: json.isReadOnly,
+      isAbstract: json.isAbstract
     });
     
-    return portUsage;
+    return attributeUsage;
   }
 }
