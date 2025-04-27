@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import DiagramEditor from './DiagramEditor';
 import PropertyPanel from './PropertyPanel';
 import { useSysMLModelStore } from '../store/sysmlStore';
@@ -7,32 +7,16 @@ import { useSysMLModelStore } from '../store/sysmlStore';
  * DiagramEditorとPropertyPanelを統合したワークスペース
  */
 const DiagramWorkspace: React.FC = () => {
-  const sysmlStore = useSysMLModelStore();
-  const { selectedElementId } = sysmlStore;
-  
-  // ストアの状態が変わったときに再描画
-  const [, forceUpdate] = useState<{}>({});
+  // Zustandストアを直接使用
+  const { 
+    selectedElementId,
+    initializeSampleModel
+  } = useSysMLModelStore();
   
   useEffect(() => {
     // サンプルモデルを初期化（必要に応じてコメントアウト）
-    sysmlStore.initializeSampleModel();
-    
-    // ストアの状態変更を検出するためのサブスクリプション
-    // 変更が起きたときのみ更新するカスタムサブスクライブ処理
-    let previousState = sysmlStore.getState();
-    const unsubscribe = sysmlStore.subscribe((state) => {
-      if (state !== previousState) {
-        previousState = state;
-        forceUpdate({});
-      }
-    });
-    
-    return () => {
-      if (typeof unsubscribe === 'function') {
-        unsubscribe();
-      }
-    };
-  }, []);
+    initializeSampleModel();
+  }, [initializeSampleModel]);
   
   return (
     <div className="diagram-workspace">
