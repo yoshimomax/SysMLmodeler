@@ -8,6 +8,7 @@
 
 import { v4 as uuid } from 'uuid';
 import { ActionUsage } from '../ActionUsage';
+import { FeatureObject } from '../../kerml/Feature';
 
 /**
  * アクション分岐情報を表す型

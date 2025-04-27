@@ -8,6 +8,7 @@
 
 import { v4 as uuid } from 'uuid';
 import { ActionUsage } from '../ActionUsage';
+import { FeatureObject } from '../../kerml/Feature';
 
 export class PerformActionUsage extends ActionUsage {
   /** 実行対象のアクションを参照するID */
@@ -92,8 +93,9 @@ export class PerformActionUsage extends ActionUsage {
   
   /**
    * 実行アクションの情報をオブジェクトとして返す
+   * @returns FeatureObject 構造
    */
-  override toObject() {
+  override toObject(): FeatureObject {
     const baseObject = super.toObject();
     
     // パラメータマッピングをオブジェクトに変換
@@ -104,8 +106,12 @@ export class PerformActionUsage extends ActionUsage {
     
     return {
       ...baseObject,
-      target: this.target,
-      parameterMapping: parameterMappingObj
+      type: 'PerformActionUsage',
+      properties: {
+        ...baseObject.properties,
+        target: this.target,
+        parameterMapping: parameterMappingObj
+      }
     };
   }
   
@@ -148,9 +154,14 @@ export class PerformActionUsage extends ActionUsage {
    */
   toJSON(): any {
     const obj = this.toObject();
-    return {
+    // obj.properties内のすべてのプロパティをトップレベルに移動
+    const result = {
       ...obj,
+      ...obj.properties,
       __type: 'PerformActionUsage'
     };
+    // propertiesプロパティを除外した新しいオブジェクトを作成
+    const { properties, ...resultWithoutProperties } = result;
+    return resultWithoutProperties;
   }
 }
