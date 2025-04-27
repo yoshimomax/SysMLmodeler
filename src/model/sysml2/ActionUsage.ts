@@ -1,69 +1,79 @@
 /**
  * SysML v2 ActionUsage クラス
- * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.17に準拠
+ * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §10.4に準拠
  * 
- * ActionUsageは、アクションの使用を表すクラスです。
- * 後続関係、パラメータ値、および実行順序を定義します。
+ * ActionUsageは、システム内での行動を表現するクラスです。
+ * 様々な種類のアクションや制御構造の基底クラスとなります。
  */
 
 import { v4 as uuid } from 'uuid';
-import { Feature, FeatureObject } from '../kerml/Feature';
+import { Feature } from '../kerml/Feature';
+import { FeatureObject } from '../kerml/Feature';
 
+/**
+ * ActionUsage クラス
+ * SysML v2のアクション使用を表現するクラス
+ */
 export class ActionUsage extends Feature {
-  /** このアクションの後続アクションのID配列 */
+  /** アクション定義への参照ID */
+  actionDefinitionId?: string;
+  
+  /** 継続関係（次のアクション）への参照ID配列 */
   successions: string[] = [];
   
-  /** このアクションが参照するアクション定義のID */
-  actionDefinition?: string;
+  /** パラメータ値のマップ */
+  parameterValues: Record<string, any> = {};
   
-  /** アクションが持つパラメータ値のマッピング */
-  parameterValues: Map<string, any> = new Map();
-  
-  /** アクションが持つパラメータ参照のリスト */
+  /** パラメータID配列 */
   parameters: string[] = [];
   
-  /** 実行のガード条件（アクションが実行される条件） */
+  /** ガード条件（実行条件） */
   guard?: string;
   
   /**
-   * アクション使用のコンストラクタ
-   * @param options アクション使用の初期化オプション
+   * ActionUsage コンストラクタ
+   * @param options 初期化オプション
    */
   constructor(options: {
     id?: string;
     name?: string;
-    actionDefinition?: string;
+    actionDefinitionId?: string;
     successions?: string[];
     parameterValues?: Record<string, any>;
     parameters?: string[];
     guard?: string;
     ownerId?: string;
+    description?: string;
     isAbstract?: boolean;
   } = {}) {
-    // Feature基底クラスのコンストラクタを呼び出し
     super({
       id: options.id,
       name: options.name,
       ownerId: options.ownerId,
+      description: options.description,
       isAbstract: options.isAbstract
     });
     
-    this.actionDefinition = options.actionDefinition;
-    this.successions = options.successions || [];
-    this.parameters = options.parameters || [];
-    this.guard = options.guard;
+    this.actionDefinitionId = options.actionDefinitionId;
     
-    // パラメータ値のマッピングを初期化
-    if (options.parameterValues) {
-      Object.entries(options.parameterValues).forEach(([key, value]) => {
-        this.parameterValues.set(key, value);
-      });
+    if (options.successions) {
+      this.successions = [...options.successions];
     }
+    
+    if (options.parameterValues) {
+      this.parameterValues = { ...options.parameterValues };
+    }
+    
+    if (options.parameters) {
+      this.parameters = [...options.parameters];
+    }
+    
+    this.guard = options.guard;
   }
   
   /**
-   * 後続アクションを追加する
-   * @param successorId 後続アクションのID
+   * 継続関係（次のアクション）を追加
+   * @param successorId 次のアクションのID
    */
   addSuccession(successorId: string): void {
     if (!this.successions.includes(successorId)) {
@@ -72,77 +82,57 @@ export class ActionUsage extends Feature {
   }
   
   /**
-   * 後続アクションを削除する
-   * @param successorId 削除する後続アクションのID
-   * @returns 削除成功した場合はtrue、そうでなければfalse
+   * 継続関係（次のアクション）を削除
+   * @param successorId 削除する次のアクションのID
    */
-  removeSuccession(successorId: string): boolean {
-    const initialLength = this.successions.length;
+  removeSuccession(successorId: string): void {
     this.successions = this.successions.filter(id => id !== successorId);
-    return this.successions.length !== initialLength;
   }
   
   /**
-   * パラメータを追加する
-   * @param parameterId 追加するパラメータのID
+   * パラメータ値を設定
+   * @param name パラメータ名
+   * @param value 値
    */
-  addParameter(parameterId: string): void {
-    if (!this.parameters.includes(parameterId)) {
-      this.parameters.push(parameterId);
-    }
+  setParameterValue(name: string, value: any): void {
+    this.parameterValues[name] = value;
   }
   
   /**
-   * パラメータ値を設定する
-   * @param parameterId パラメータID
-   * @param value パラメータの値
-   */
-  setParameterValue(parameterId: string, value: any): void {
-    this.parameterValues.set(parameterId, value);
-  }
-  
-  /**
-   * パラメータ値を取得する
-   * @param parameterId パラメータID
-   * @returns パラメータの値、存在しない場合はundefined
-   */
-  getParameterValue(parameterId: string): any {
-    return this.parameterValues.get(parameterId);
-  }
-  
-  /**
-   * ガード条件を設定する
-   * @param condition アクションが実行される条件式
-   */
-  setGuard(condition: string): void {
-    this.guard = condition;
-  }
-  
-  /**
-   * アクション使用の情報をオブジェクトとして返す
+   * アクションの情報をオブジェクトとして返す
    * @returns FeatureObject 構造
    */
   override toObject(): FeatureObject {
     const baseObject = super.toObject();
-    
-    // パラメータ値のマッピングをオブジェクトに変換
-    const parameterValuesObj: Record<string, any> = {};
-    this.parameterValues.forEach((value, paramId) => {
-      parameterValuesObj[paramId] = value;
-    });
-    
     return {
       ...baseObject,
       type: 'ActionUsage',
       properties: {
         ...baseObject.properties,
-        actionDefinition: this.actionDefinition,
+        actionDefinitionId: this.actionDefinitionId,
         successions: [...this.successions],
+        parameterValues: { ...this.parameterValues },
         parameters: [...this.parameters],
-        parameterValues: parameterValuesObj,
         guard: this.guard
       }
     };
+  }
+  
+  /**
+   * JSONシリアライズ用のメソッド
+   * @returns JSON形式のオブジェクト
+   */
+  override toJSON(): any {
+    const obj = this.toObject();
+    // obj.properties内のすべてのプロパティをトップレベルに移動
+    const result = {
+      ...obj,
+      ...obj.properties,
+      __type: 'ActionUsage'
+    };
+    // propertiesプロパティを除外した新しいオブジェクトを作成
+    const { properties, ...resultWithoutProperties } = result;
+    return resultWithoutProperties;
   }
   
   /**
@@ -155,31 +145,19 @@ export class ActionUsage extends Feature {
       throw new Error('有効なJSONオブジェクトではありません');
     }
     
-    // ActionUsageインスタンスを作成
     const actionUsage = new ActionUsage({
       id: json.id || uuid(),
       name: json.name,
       ownerId: json.ownerId,
+      description: json.description,
       isAbstract: json.isAbstract,
-      actionDefinition: json.actionDefinition,
-      successions: Array.isArray(json.successions) ? [...json.successions] : [],
-      parameters: Array.isArray(json.parameters) ? [...json.parameters] : [],
-      parameterValues: json.parameterValues || {},
+      actionDefinitionId: json.actionDefinitionId,
+      successions: json.successions,
+      parameterValues: json.parameterValues,
+      parameters: json.parameters,
       guard: json.guard
     });
     
     return actionUsage;
-  }
-  
-  /**
-   * JSONシリアライズ用のメソッド
-   * @returns JSON形式のオブジェクト
-   */
-  toJSON(): any {
-    const obj = this.toObject();
-    return {
-      ...obj,
-      __type: 'ActionUsage'
-    };
   }
 }

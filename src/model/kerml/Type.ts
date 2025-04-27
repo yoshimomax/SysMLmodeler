@@ -1,35 +1,28 @@
 /**
  * KerML Type クラス
- * SysML v2 言語仕様のKerML基本型を表現する
- * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.2に準拠
+ * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.4に準拠
  * 
- * Typeは、KerMLの型システムの基本クラスで、
- * 全てのモデル要素の基底となる型です。
+ * KerMLの型は、要素を分類するための基礎となる概念です。
+ * すべてのSysML v2/KerMLモデル要素の基底クラスです。
  */
 
 import { v4 as uuid } from 'uuid';
-import { FeatureObject } from './Feature';
 
+/**
+ * Type クラス
+ * すべてのモデル要素の基底クラス
+ */
 export class Type {
-  /** 型の一意識別子 */
+  /** 要素の一意識別子 */
   readonly id: string;
   
-  /** 型の名前 */
+  /** 要素の名前 */
   name: string;
   
-  /** この型を所有する要素のID */
-  ownerId?: string;
-  
-  /** 型の短い名前 */
-  shortName?: string;
-  
-  /** 型の完全修飾名 */
-  qualifiedName?: string;
-  
-  /** 型の説明 */
+  /** 要素の説明 */
   description?: string;
   
-  /** 抽象型かどうか */
+  /** 抽象要素かどうか */
   isAbstract: boolean = false;
   
   /** 共役型かどうか */
@@ -42,63 +35,47 @@ export class Type {
   constructor(options: {
     id?: string;
     name?: string;
-    ownerId?: string;
-    shortName?: string;
-    qualifiedName?: string;
     description?: string;
     isAbstract?: boolean;
     isConjugated?: boolean;
-    features?: any[];
   } = {}) {
     this.id = options.id || uuid();
-    this.name = options.name || `Type_${this.id.slice(0, 8)}`;
-    this.ownerId = options.ownerId;
-    this.shortName = options.shortName;
-    this.qualifiedName = options.qualifiedName;
+    this.name = options.name || 'unnamed';
     this.description = options.description;
-    
-    if (options.isAbstract !== undefined) {
-      this.isAbstract = options.isAbstract;
-    }
-    
-    if (options.isConjugated !== undefined) {
-      this.isConjugated = options.isConjugated;
-    }
+    this.isAbstract = options.isAbstract || false;
+    this.isConjugated = options.isConjugated || false;
   }
   
   /**
-   * 型の情報をオブジェクトとして返す
-   * @returns FeatureObject 構造
+   * このTypeを検証する
+   * オーバーライド可能なバリデーションロジック
    */
-  toObject(): FeatureObject {
+  validate(): void {
+    // 基底クラスでは特に検証ロジックなし
+    // サブクラスでオーバーライドして拡張可能
+  }
+  
+  /**
+   * オブジェクトを文字列表現に変換
+   * @returns 読みやすい文字列形式
+   */
+  toString(): string {
+    return `${this.name} (${this.id.substring(0, 8)}...)`;
+  }
+  
+  /**
+   * オブジェクトをJSON形式に変換
+   * @returns JSONシリアライズ可能なオブジェクト
+   */
+  toJSON(): any {
     return {
       id: this.id,
       name: this.name,
-      type: 'Type',
-      properties: {
-        ownerId: this.ownerId,
-        shortName: this.shortName,
-        qualifiedName: this.qualifiedName,
-        description: this.description,
-        isAbstract: this.isAbstract,
-        isConjugated: this.isConjugated
-      }
+      description: this.description,
+      isAbstract: this.isAbstract,
+      isConjugated: this.isConjugated,
+      __type: 'Type'
     };
-  }
-  
-  /**
-   * KerML制約を検証する
-   * SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.2に準拠
-   * @throws Error 制約違反がある場合
-   */
-  validate(): void {
-    // 名前の存在確認
-    if (!this.name || this.name.trim() === '') {
-      console.warn(`警告: Type(id=${this.id})に名前が設定されていません`);
-    }
-    
-    // その他の制約チェック
-    // ここに追加の検証ロジックを実装
   }
   
   /**
@@ -111,35 +88,12 @@ export class Type {
       throw new Error('有効なJSONオブジェクトではありません');
     }
     
-    // Typeインスタンスを作成
-    const type = new Type({
+    return new Type({
       id: json.id || uuid(),
       name: json.name,
-      ownerId: json.ownerId,
-      shortName: json.shortName,
-      qualifiedName: json.qualifiedName,
       description: json.description,
       isAbstract: json.isAbstract,
       isConjugated: json.isConjugated
     });
-    
-    return type;
-  }
-  
-  /**
-   * JSONシリアライズ用のメソッド
-   * @returns JSON形式のオブジェクト
-   */
-  toJSON(): any {
-    const obj = this.toObject();
-    // obj.properties内のすべてのプロパティをトップレベルに移動
-    const result = {
-      ...obj,
-      ...obj.properties,
-      __type: 'Type'
-    };
-    // propertiesプロパティを除外した新しいオブジェクトを作成
-    const { properties, ...resultWithoutProperties } = result;
-    return resultWithoutProperties;
   }
 }

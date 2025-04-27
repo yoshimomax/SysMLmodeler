@@ -1,9 +1,8 @@
 /**
  * SysML v2 IfActionUsage クラス
- * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.17.4に準拠
+ * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §10.4.7に準拠
  * 
- * IfActionUsageは、条件分岐アクションを表現するクラスです。
- * 条件に基づいて複数の分岐（ブランチ）からアクションを選択して実行します。
+ * IfActionUsageは、条件分岐を表現するアクションクラスです。
  */
 
 import { v4 as uuid } from 'uuid';
@@ -11,25 +10,32 @@ import { ActionUsage } from '../ActionUsage';
 import { FeatureObject } from '../../kerml/Feature';
 
 /**
- * アクション分岐情報を表す型
+ * アクション分岐を表現するインターフェース
  */
 export interface ActionBranch {
-  /** 分岐の一意識別子 */
+  /** 分岐のID */
   id: string;
   
-  /** 分岐条件（else節の場合は不要） */
+  /** 分岐の条件（else分岐の場合は不要） */
   condition?: string;
   
-  /** この分岐で実行するアクションのID配列 */
+  /** 分岐内のアクションID配列 */
   actions: string[];
   
-  /** elseブランチかどうか */
+  /** else分岐かどうか */
   isElse: boolean;
 }
 
+/**
+ * IfActionUsage クラス
+ * SysML v2の条件分岐アクションを表現するクラス
+ */
 export class IfActionUsage extends ActionUsage {
-  /** 条件分岐のブランチリスト */
+  /** 条件分岐配列 */
   branches: ActionBranch[] = [];
+  
+  /** 分岐の種類（if-then, if-then-else, etc.） */
+  branchType: 'if-then' | 'if-then-else' = 'if-then';
   
   /**
    * IfActionUsage コンストラクタ
@@ -38,120 +44,121 @@ export class IfActionUsage extends ActionUsage {
   constructor(options: {
     id?: string;
     name?: string;
+    loopType?: string;
+    condition?: string;
     branches?: ActionBranch[];
-    actionDefinition?: string;
-    successions?: string[];
-    parameterValues?: Record<string, any>;
-    parameters?: string[];
-    guard?: string;
     ownerId?: string;
+    description?: string;
     isAbstract?: boolean;
   } = {}) {
-    // ActionUsage基底クラスのコンストラクタを呼び出し
     super({
       id: options.id,
       name: options.name,
-      actionDefinition: options.actionDefinition,
-      successions: options.successions,
-      parameterValues: options.parameterValues,
-      parameters: options.parameters,
-      guard: options.guard,
+      actionDefinitionId: 'action.control.if',
       ownerId: options.ownerId,
+      description: options.description,
       isAbstract: options.isAbstract
     });
     
-    // 分岐の初期化
-    this.branches = options.branches || [];
-    
-    // 分岐のIDがない場合は生成
-    this.branches.forEach(branch => {
-      if (!branch.id) {
-        branch.id = uuid();
-      }
-    });
+    if (options.branches && options.branches.length > 0) {
+      this.branches = [...options.branches];
+      // else分岐があるかどうかチェック
+      const hasElse = this.branches.some(branch => branch.isElse);
+      this.branchType = hasElse ? 'if-then-else' : 'if-then';
+    } else {
+      // デフォルト分岐を作成
+      this.branches = [
+        {
+          id: uuid(),
+          condition: options.condition || 'true',
+          actions: [],
+          isElse: false
+        }
+      ];
+    }
   }
   
   /**
    * 分岐を追加する
-   * @param condition 条件式（elseの場合はundefined）
-   * @param actions アクションIDの配列
-   * @param isElse elseブランチかどうか
-   * @returns 追加した分岐のID
+   * @param condition 条件式
+   * @param isElse else分岐かどうか
+   * @returns 作成された分岐ID
    */
-  addBranch(condition: string | undefined, actions: string[], isElse: boolean = false): string {
-    const branchId = uuid();
+  addBranch(condition?: string, isElse: boolean = false): string {
+    // else分岐が既にある場合は追加できない
+    if (isElse && this.branches.some(branch => branch.isElse)) {
+      throw new Error('else分岐は1つしか追加できません');
+    }
     
-    this.branches.push({
-      id: branchId,
-      condition,
-      actions: [...actions],
+    const branch: ActionBranch = {
+      id: uuid(),
+      condition: isElse ? undefined : (condition || 'true'),
+      actions: [],
       isElse
-    });
+    };
     
-    return branchId;
+    this.branches.push(branch);
+    
+    // 分岐の種類を更新
+    if (isElse) {
+      this.branchType = 'if-then-else';
+    }
+    
+    return branch.id;
   }
   
   /**
    * 分岐を削除する
    * @param branchId 削除する分岐のID
-   * @returns 削除成功した場合はtrue、そうでなければfalse
    */
-  removeBranch(branchId: string): boolean {
-    const initialLength = this.branches.length;
+  removeBranch(branchId: string): void {
     this.branches = this.branches.filter(branch => branch.id !== branchId);
-    return this.branches.length !== initialLength;
-  }
-  
-  /**
-   * 分岐条件を更新する
-   * @param branchId 分岐ID
-   * @param condition 新しい条件式
-   * @returns 更新成功した場合はtrue、そうでなければfalse
-   */
-  updateBranchCondition(branchId: string, condition: string): boolean {
-    const branch = this.branches.find(b => b.id === branchId);
-    if (branch) {
-      branch.condition = condition;
-      return true;
-    }
-    return false;
+    
+    // 分岐の種類を更新
+    const hasElse = this.branches.some(branch => branch.isElse);
+    this.branchType = hasElse ? 'if-then-else' : 'if-then';
   }
   
   /**
    * 分岐にアクションを追加する
    * @param branchId 分岐ID
-   * @param actionId 追加するアクションID
-   * @returns 追加成功した場合はtrue、そうでなければfalse
+   * @param actionId アクションID
    */
-  addActionToBranch(branchId: string, actionId: string): boolean {
+  addActionToBranch(branchId: string, actionId: string): void {
     const branch = this.branches.find(b => b.id === branchId);
     if (branch) {
       if (!branch.actions.includes(actionId)) {
         branch.actions.push(actionId);
       }
-      return true;
     }
-    return false;
   }
   
   /**
    * 分岐からアクションを削除する
    * @param branchId 分岐ID
-   * @param actionId 削除するアクションID
-   * @returns 削除成功した場合はtrue、そうでなければfalse
+   * @param actionId アクションID
    */
-  removeActionFromBranch(branchId: string, actionId: string): boolean {
+  removeActionFromBranch(branchId: string, actionId: string): void {
     const branch = this.branches.find(b => b.id === branchId);
     if (branch) {
-      const initialLength = branch.actions.length;
       branch.actions = branch.actions.filter(id => id !== actionId);
-      return branch.actions.length !== initialLength;
     }
-    return false;
   }
   
   /**
-   * 条件分岐アクションの情報をオブジェクトとして返す
+   * 条件式を更新する
+   * @param branchId 分岐ID
+   * @param condition 新しい条件式
+   */
+  updateCondition(branchId: string, condition: string): void {
+    const branch = this.branches.find(b => b.id === branchId);
+    if (branch && !branch.isElse) {
+      branch.condition = condition;
+    }
+  }
+  
+  /**
+   * アクションの情報をオブジェクトとして返す
    * @returns FeatureObject 構造
    */
   override toObject(): FeatureObject {
@@ -161,14 +168,27 @@ export class IfActionUsage extends ActionUsage {
       type: 'IfActionUsage',
       properties: {
         ...baseObject.properties,
-        branches: this.branches.map(branch => ({
-          id: branch.id,
-          condition: branch.condition,
-          actions: [...branch.actions],
-          isElse: branch.isElse
-        }))
+        branches: this.branches.map(branch => ({...branch})),
+        branchType: this.branchType
       }
     };
+  }
+  
+  /**
+   * JSONシリアライズ用のメソッド
+   * @returns JSON形式のオブジェクト
+   */
+  override toJSON(): any {
+    const obj = this.toObject();
+    // obj.properties内のすべてのプロパティをトップレベルに移動
+    const result = {
+      ...obj,
+      ...obj.properties,
+      __type: 'IfActionUsage'
+    };
+    // propertiesプロパティを除外した新しいオブジェクトを作成
+    const { properties, ...resultWithoutProperties } = result;
+    return resultWithoutProperties;
   }
   
   /**
@@ -181,47 +201,19 @@ export class IfActionUsage extends ActionUsage {
       throw new Error('有効なJSONオブジェクトではありません');
     }
     
-    // 分岐情報の復元
-    const branches = Array.isArray(json.branches) 
-      ? json.branches.map((branch: any) => ({
-          id: branch.id || uuid(),
-          condition: branch.condition,
-          actions: Array.isArray(branch.actions) ? [...branch.actions] : [],
-          isElse: branch.isElse === true
-        }))
-      : [];
-    
-    // IfActionUsageインスタンスを作成
     const ifAction = new IfActionUsage({
       id: json.id || uuid(),
       name: json.name,
       ownerId: json.ownerId,
+      description: json.description,
       isAbstract: json.isAbstract,
-      actionDefinition: json.actionDefinition,
-      successions: Array.isArray(json.successions) ? [...json.successions] : [],
-      parameters: Array.isArray(json.parameters) ? [...json.parameters] : [],
-      parameterValues: json.parameterValues || {},
-      guard: json.guard,
-      branches
+      branches: json.branches
     });
     
+    if (json.branchType) {
+      ifAction.branchType = json.branchType;
+    }
+    
     return ifAction;
-  }
-  
-  /**
-   * JSONシリアライズ用のメソッド
-   * @returns JSON形式のオブジェクト
-   */
-  toJSON(): any {
-    const obj = this.toObject();
-    // obj.properties内のすべてのプロパティをトップレベルに移動
-    const result = {
-      ...obj,
-      ...obj.properties,
-      __type: 'IfActionUsage'
-    };
-    // propertiesプロパティを除外した新しいオブジェクトを作成
-    const { properties, ...resultWithoutProperties } = result;
-    return resultWithoutProperties;
   }
 }

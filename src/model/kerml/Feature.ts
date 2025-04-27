@@ -1,55 +1,72 @@
-import { v4 as uuidv4 } from 'uuid';
-import { KerML_Feature } from './interfaces';
+/**
+ * KerML Feature クラス
+ * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §7に準拠
+ * 
+ * KerMLのFeatureは、型やその他のFeatureの特性を表現する基本クラスです。
+ * SysMLのすべてのUsageクラスの基底クラスとなります。
+ */
+
+import { v4 as uuid } from 'uuid';
 import { Type } from './Type';
 
 /**
- * Feature オブジェクトのインターフェース
- * Feature クラスとその派生クラスの共通オブジェクト構造を定義
+ * Feature情報を表現するオブジェクト型
  */
 export interface FeatureObject {
   id: string;
-  name?: string;
+  name: string;
   type: string;
-  properties: Record<string, any>;
+  properties: {
+    ownerId?: string;
+    description?: string;
+    direction?: 'in' | 'out' | 'inout';
+    isAbstract?: boolean;
+    isReadOnly?: boolean;
+    isDerived?: boolean;
+    redefinitionIds?: string[];
+    [key: string]: any;
+  };
 }
 
 /**
- * KerML Feature クラス
- * KerML メタモデルの特性（Feature）概念を表現する
- * OMG仕様：ptc/2025-02-02, KerML v1.0 Beta3
+ * Featureクラス
+ * KerMLの特性を表現するクラス、すべてのSysML v2 Usageの親クラス
  */
 export class Feature extends Type {
-  /** 一意かどうか */
-  isUnique: boolean = true;
+  /** このFeatureの所有者ID */
+  ownerId?: string;
   
-  /** 順序付けられているかどうか */
-  isOrdered: boolean = false;
-  
-  /** コンポジションかどうか */
-  isComposite: boolean = false;
-  
-  /** 部分かどうか */
-  isPortion: boolean = false;
-  
-  /** 読み取り専用かどうか */
-  isReadOnly: boolean = false;
-  
-  /** 派生かどうか */
-  isDerived: boolean = false;
-  
-  /** 関連の終端かどうか */
-  isEnd: boolean = false;
-  
-  /** 方向 */
+  /** 方向 (in, out, inout) */
   direction?: 'in' | 'out' | 'inout';
   
-  /** 再定義対象のFeature ID配列 */
+  /** ユニーク性 */
+  isUnique: boolean = true;
+  
+  /** 順序指定 */
+  isOrdered: boolean = false;
+  
+  /** 合成関係 */
+  isComposite: boolean = false;
+  
+  /** 部分指定 */
+  isPortion: boolean = false;
+  
+  /** 読み取り専用 */
+  isReadOnly: boolean = false;
+  
+  /** 派生特性 */
+  isDerived: boolean = false;
+  
+  /** 端点特性 */
+  isEnd: boolean = false;
+  
+  /** 再定義関係にある特性のID配列 */
   redefinitionIds: string[] = [];
   
-  /** 型参照ID */
-  private _typeId?: string;
+  /** 型のID（オプション） */
+  typeId?: string;
   
-  /** この Feature に属する特性のリスト */
+  /** このFeatureに含まれる子Feature（合成関係） */
   features: Feature[] = [];
   
   /**
@@ -58,104 +75,74 @@ export class Feature extends Type {
    */
   constructor(options: {
     id?: string;
-    ownerId?: string;
     name?: string;
-    shortName?: string;
-    qualifiedName?: string;
+    ownerId?: string;
     description?: string;
-    isAbstract?: boolean;
-    isConjugated?: boolean;
+    direction?: 'in' | 'out' | 'inout';
+    isReadOnly?: boolean;
+    isDerived?: boolean;
     isUnique?: boolean;
     isOrdered?: boolean;
     isComposite?: boolean;
     isPortion?: boolean;
-    isReadOnly?: boolean;
-    isDerived?: boolean;
+    isAbstract?: boolean;
     isEnd?: boolean;
-    direction?: 'in' | 'out' | 'inout';
     typeId?: string;
     redefinitionIds?: string[];
-    features?: Feature[];
   } = {}) {
-    // 親クラスのコンストラクタを呼び出し
     super({
       id: options.id,
-      ownerId: options.ownerId,
-      name: options.name,
-      shortName: options.shortName,
-      qualifiedName: options.qualifiedName,
+      name: options.name || 'unnamed',
       description: options.description,
-      isAbstract: options.isAbstract,
-      isConjugated: options.isConjugated,
-      features: options.features
+      isAbstract: options.isAbstract
     });
     
-    if (options.isUnique !== undefined) {
-      this.isUnique = options.isUnique;
-    }
-    
-    if (options.isOrdered !== undefined) {
-      this.isOrdered = options.isOrdered;
-    }
-    
-    if (options.isComposite !== undefined) {
-      this.isComposite = options.isComposite;
-    }
-    
-    if (options.isPortion !== undefined) {
-      this.isPortion = options.isPortion;
-    }
-    
-    if (options.isReadOnly !== undefined) {
-      this.isReadOnly = options.isReadOnly;
-    }
-    
-    if (options.isDerived !== undefined) {
-      this.isDerived = options.isDerived;
-    }
-    
-    if (options.isEnd !== undefined) {
-      this.isEnd = options.isEnd;
-    }
+    this.ownerId = options.ownerId;
+    this.direction = options.direction;
+    this.isReadOnly = options.isReadOnly ?? false;
+    this.isDerived = options.isDerived ?? false;
+    this.isUnique = options.isUnique ?? true;
+    this.isOrdered = options.isOrdered ?? false;
+    this.isComposite = options.isComposite ?? false;
+    this.isPortion = options.isPortion ?? false;
+    this.isEnd = options.isEnd ?? false;
+    this.typeId = options.typeId;
     
     if (options.redefinitionIds) {
       this.redefinitionIds = [...options.redefinitionIds];
     }
-    
-    this.direction = options.direction;
-    this._typeId = options.typeId;
   }
   
   /**
-   * 型参照IDを取得
+   * 再定義関係を追加する
+   * @param redefinedId 再定義対象のID
    */
-  get typeId(): string | undefined {
-    return this._typeId;
-  }
-  
-  /**
-   * 型参照IDを設定
-   */
-  set typeId(id: string | undefined) {
-    this._typeId = id;
-  }
-  
-  /**
-   * 子特性を追加する
-   * @param feature 追加する特性
-   */
-  addFeature(feature: Feature): void {
-    // 同じIDの特性が既に存在していないか確認
-    if (!this.features.some(f => f.id === feature.id)) {
-      this.features.push(feature);
-      // 所有者IDを設定
-      feature.ownerId = this.id;
+  addRedefinition(redefinedId: string): void {
+    if (!this.redefinitionIds.includes(redefinedId)) {
+      this.redefinitionIds.push(redefinedId);
     }
   }
   
   /**
-   * 共通オブジェクト形式に変換（派生クラスでのオーバーライド用）
-   * @returns FeatureObject 構造
+   * 子Featureを追加する
+   * @param feature 追加するFeature
+   */
+  addFeature(feature: Feature): void {
+    this.features.push(feature);
+    feature.ownerId = this.id;
+  }
+  
+  /**
+   * 子Featureを削除する
+   * @param featureId 削除するFeatureのID
+   */
+  removeFeature(featureId: string): void {
+    this.features = this.features.filter(f => f.id !== featureId);
+  }
+  
+  /**
+   * シリアライズ可能なオブジェクトに変換する
+   * @returns FeatureObject
    */
   toObject(): FeatureObject {
     return {
@@ -163,87 +150,67 @@ export class Feature extends Type {
       name: this.name,
       type: 'Feature',
       properties: {
+        ownerId: this.ownerId,
+        description: this.description,
+        direction: this.direction,
+        isAbstract: this.isAbstract,
+        isReadOnly: this.isReadOnly,
+        isDerived: this.isDerived,
         isUnique: this.isUnique,
         isOrdered: this.isOrdered,
         isComposite: this.isComposite,
         isPortion: this.isPortion,
-        isReadOnly: this.isReadOnly,
-        isDerived: this.isDerived,
         isEnd: this.isEnd,
-        direction: this.direction,
-        typeId: this._typeId,
-        redefinitionIds: [...this.redefinitionIds],
-        ownerId: this.ownerId,
-        shortName: this.shortName,
-        qualifiedName: this.qualifiedName,
-        description: this.description
+        typeId: this.typeId,
+        redefinitionIds: [...this.redefinitionIds]
       }
     };
   }
-
+  
   /**
-   * JSON形式に変換
-   * @returns JSON表現
+   * JSONシリアライズ用のメソッド
+   * @returns JSON形式のオブジェクト
    */
-  toJSON(): KerML_Feature {
+  override toJSON(): any {
     const obj = this.toObject();
     // obj.properties内のすべてのプロパティをトップレベルに移動
     const result = {
       ...obj,
       ...obj.properties,
-      __type: 'Feature',
-      isUnique: this.isUnique,
-      isOrdered: this.isOrdered,
-      isComposite: this.isComposite,
-      isPortion: this.isPortion,
-      isReadOnly: this.isReadOnly,
-      isDerived: this.isDerived,
-      isEnd: this.isEnd,
-      direction: this.direction,
-      type: this._typeId,
-      redefinitions: this.redefinitionIds.length > 0 ? this.redefinitionIds : undefined
+      __type: 'Feature'
     };
     // propertiesプロパティを除外した新しいオブジェクトを作成
     const { properties, ...resultWithoutProperties } = result;
-    return resultWithoutProperties as KerML_Feature;
+    return resultWithoutProperties;
   }
   
   /**
-   * JSON形式から特性を作成
-   * @param json JSON表現
-   * @returns 特性インスタンス
+   * JSONデータからFeatureインスタンスを作成する
+   * @param json JSON形式のデータ
+   * @returns 新しいFeatureインスタンス
    */
-  static fromJSON(json: KerML_Feature, featureInstances: Feature[] = []): Feature {
-    // 基本的なFeature情報で初期化
+  static fromJSON(json: any): Feature {
+    if (!json || typeof json !== 'object') {
+      throw new Error('有効なJSONオブジェクトではありません');
+    }
+    
     const feature = new Feature({
-      id: json.id,
-      ownerId: json.ownerId,
+      id: json.id || uuid(),
       name: json.name,
-      shortName: json.shortName,
-      qualifiedName: json.qualifiedName,
+      ownerId: json.ownerId,
       description: json.description,
+      direction: json.direction,
       isAbstract: json.isAbstract,
-      isConjugated: json.isConjugated,
+      isReadOnly: json.isReadOnly,
+      isDerived: json.isDerived,
       isUnique: json.isUnique,
       isOrdered: json.isOrdered,
       isComposite: json.isComposite,
       isPortion: json.isPortion,
-      isReadOnly: json.isReadOnly,
-      isDerived: json.isDerived,
       isEnd: json.isEnd,
-      direction: json.direction,
-      typeId: json.type,
-      redefinitionIds: json.redefinitions
+      typeId: json.typeId,
+      redefinitionIds: json.redefinitionIds
     });
-    
-    // 入れ子のFeature情報は既に生成されたインスタンスを使用
-    if (featureInstances.length > 0) {
-      featureInstances.forEach(childFeature => {
-        if (childFeature.ownerId === feature.id) {
-          feature.addFeature(childFeature);
-        }
-      });
-    }
     
     return feature;
   }
