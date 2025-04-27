@@ -1,566 +1,506 @@
 import { create } from 'zustand';
-import { v4 as uuid } from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 
-// KerML/SysML v2 基本クラスのインポート
-import { Type } from '../model/kerml/Type';
-import { Feature } from '../model/kerml/Feature';
-import { Classifier } from '../model/kerml/Classifier';
-import { Definition } from '../model/kerml/Definition';
-import { PartDefinition } from '../model/sysml2/PartDefinition';
-import { InterfaceDefinition } from '../model/sysml2/InterfaceDefinition';
-import { ConnectionDefinition } from '../model/sysml2/ConnectionDefinition';
-import { ActionUsage } from '../model/sysml2/ActionUsage';
-import { PerformActionUsage } from '../model/sysml2/actions/PerformActionUsage';
-import { IfActionUsage } from '../model/sysml2/actions/IfActionUsage';
-import { LoopActionUsage } from '../model/sysml2/actions/LoopActionUsage';
-import { FeatureObject } from '../model/kerml/Feature';
-
-/**
- * モデル要素のユニオン型（Type からの継承ツリーに含まれる全ての要素）
- */
-export type ModelElement = 
-  | Type 
-  | Feature 
-  | Classifier 
-  | Definition 
-  | PartDefinition 
-  | InterfaceDefinition 
-  | ConnectionDefinition 
-  | ActionUsage 
-  | PerformActionUsage 
-  | IfActionUsage 
-  | LoopActionUsage;
-
-/**
- * モデル間のリレーションシップの型
- */
-export interface ModelRelationship {
+// モデル要素の基本型
+export interface ModelElement {
   id: string;
-  type: 'specialization' | 'featureMembership' | 'redefinition' | 'subclassification';
-  sourceId: string;  // 関係の始点
-  targetId: string;  // 関係の終点
-  name?: string;     // オプショナルな名前
+  name: string;
+  type: string;
+  [key: string]: any;
 }
 
-/**
- * モデルストアの状態インターフェース
- */
+// モデル関係の基本型 
+export interface ModelRelationship {
+  id: string;
+  type: string;
+  sourceId: string;
+  targetId: string;
+  [key: string]: any;
+}
+
+// 操作履歴アイテムの基本型
+interface HistoryItem {
+  type: 'add' | 'update' | 'remove' | 'addRelationship' | 'updateRelationship' | 'removeRelationship';
+  data: any;
+  reverse: () => void;
+  forward: () => void;
+}
+
+// SysMLモデルストアの状態型
 export interface SysMLModelState {
-  // モデル要素とその関係の格納
+  // データストア
   elements: Record<string, ModelElement>;
   relationships: Record<string, ModelRelationship>;
   
-  // 選択状態の管理
+  // UI状態
   selectedElementId?: string;
   selectedRelationshipId?: string;
   
-  // 履歴管理
-  history: {
-    past: Array<{
-      elements: Record<string, ModelElement>;
-      relationships: Record<string, ModelRelationship>;
-    }>;
-    future: Array<{
-      elements: Record<string, ModelElement>;
-      relationships: Record<string, ModelRelationship>;
-    }>;
-  };
+  // 操作履歴
+  history: HistoryItem[];
+  historyIndex: number;
   
-  // 統一CRUD操作
+  // 基本CRUD操作
   addElement: (element: ModelElement) => void;
-  updateElement: (id: string, changes: Partial<ModelElement>) => void;
+  updateElement: (id: string, updates: Partial<ModelElement>) => void;
   removeElement: (id: string) => void;
   
-  // 関係の操作
   addRelationship: (relationship: ModelRelationship) => void;
-  updateRelationship: (id: string, changes: Partial<ModelRelationship>) => void;
+  updateRelationship: (id: string, updates: Partial<ModelRelationship>) => void;
   removeRelationship: (id: string) => void;
   
-  // SysML固有の関係操作
-  addSpecialization: (subId: string, superId: string) => void;
+  // SysML固有関係操作
+  addSpecialization: (sourceId: string, targetId: string) => void;
   addFeatureMembership: (ownerId: string, featureId: string) => void;
-  addRedefinition: (redefinerId: string, redefinedId: string) => void;
-  addSubclassification: (subclassId: string, superclassId: string) => void;
   
-  // 選択操作
-  selectElement: (id: string | undefined) => void;
-  selectRelationship: (id: string | undefined) => void;
+  // UI操作
+  setSelectedElement: (id: string | undefined) => void;
+  setSelectedRelationship: (id: string | undefined) => void;
   
   // 履歴操作
   undo: () => void;
   redo: () => void;
-  saveToHistory: () => void;
   
-  // モデルの永続化
-  getModelAsJson: () => string;
-  loadModelFromJson: (json: string) => boolean;
-  
-  // モデルのリセットとサンプルデータ
+  // モデル全体操作
   resetModel: () => void;
   initializeSampleModel: () => void;
+  getModelAsJson: () => string;
+  loadModelFromJson: (json: string) => void;
 }
 
-/**
- * SysML v2モデル管理のためのZustandストア
- */
+// SysMLモデルを管理するZustandストア
 export const useSysMLModelStore = create<SysMLModelState>((set, get) => ({
-  // 初期状態
   elements: {},
   relationships: {},
-  history: {
-    past: [],
-    future: []
-  },
+  selectedElementId: undefined,
+  selectedRelationshipId: undefined,
+  history: [],
+  historyIndex: -1,
   
-  // 要素のCRUD操作
+  // 基本CRUD操作の実装
   addElement: (element: ModelElement) => {
-    get().saveToHistory();
-    set(state => ({
-      elements: { ...state.elements, [element.id]: element }
-    }));
-  },
-  
-  updateElement: (id: string, changes: Partial<ModelElement>) => {
-    get().saveToHistory();
+    // IDが指定されていない場合は生成
+    const elementWithId = {
+      ...element,
+      id: element.id || uuidv4()
+    };
+    
     set(state => {
-      const element = state.elements[id];
-      if (!element) return state;
+      const newState = {
+        ...state,
+        elements: {
+          ...state.elements,
+          [elementWithId.id]: elementWithId
+        }
+      };
       
-      // ディープコピーを作成するためにシリアライズと逆シリアライズを使用
-      const updatedElement = { ...element, ...changes };
+      // 履歴への追加
+      const historyItem: HistoryItem = {
+        type: 'add',
+        data: { element: elementWithId },
+        reverse: () => get().removeElement(elementWithId.id),
+        forward: () => get().addElement(elementWithId)
+      };
       
       return {
-        elements: { ...state.elements, [id]: updatedElement }
+        ...newState,
+        history: [...state.history.slice(0, state.historyIndex + 1), historyItem],
+        historyIndex: state.historyIndex + 1
+      };
+    });
+    
+    return elementWithId.id;
+  },
+  
+  updateElement: (id: string, updates: Partial<ModelElement>) => {
+    const currentElement = get().elements[id];
+    if (!currentElement) return;
+    
+    const originalElement = { ...currentElement };
+    const updatedElement = { ...currentElement, ...updates };
+    
+    set(state => {
+      const newState = {
+        ...state,
+        elements: {
+          ...state.elements,
+          [id]: updatedElement
+        }
+      };
+      
+      // 履歴への追加
+      const historyItem: HistoryItem = {
+        type: 'update',
+        data: { id, updates, original: originalElement },
+        reverse: () => get().updateElement(id, originalElement),
+        forward: () => get().updateElement(id, updatedElement)
+      };
+      
+      return {
+        ...newState,
+        history: [...state.history.slice(0, state.historyIndex + 1), historyItem],
+        historyIndex: state.historyIndex + 1
       };
     });
   },
   
   removeElement: (id: string) => {
-    get().saveToHistory();
+    const elementToRemove = get().elements[id];
+    if (!elementToRemove) return;
+    
+    // この要素を参照しているリレーションシップを検索
+    const relatedRelationships = Object.entries(get().relationships)
+      .filter(([, rel]) => rel.sourceId === id || rel.targetId === id)
+      .map(([relId, rel]) => ({ id: relId, relationship: rel }));
+    
     set(state => {
+      // 要素を削除した新しい状態
       const newElements = { ...state.elements };
       delete newElements[id];
       
-      // 削除する要素に関連する関係も削除
+      // 関連するリレーションシップも削除
       const newRelationships = { ...state.relationships };
-      Object.keys(newRelationships).forEach(relId => {
-        const rel = newRelationships[relId];
-        if (rel.sourceId === id || rel.targetId === id) {
-          delete newRelationships[relId];
-        }
+      relatedRelationships.forEach(({ id: relId }) => {
+        delete newRelationships[relId];
       });
       
-      return {
+      const newState = {
+        ...state,
         elements: newElements,
         relationships: newRelationships
+      };
+      
+      // 履歴への追加
+      const historyItem: HistoryItem = {
+        type: 'remove',
+        data: { element: elementToRemove, relatedRelationships },
+        reverse: () => {
+          // 要素を復元
+          get().addElement(elementToRemove);
+          // 関連リレーションシップも復元
+          relatedRelationships.forEach(({ relationship }) => {
+            get().addRelationship(relationship);
+          });
+        },
+        forward: () => get().removeElement(id)
+      };
+      
+      return {
+        ...newState,
+        history: [...state.history.slice(0, state.historyIndex + 1), historyItem],
+        historyIndex: state.historyIndex + 1
       };
     });
   },
   
-  // 関係のCRUD操作
   addRelationship: (relationship: ModelRelationship) => {
-    get().saveToHistory();
-    set(state => ({
-      relationships: { ...state.relationships, [relationship.id]: relationship }
-    }));
-  },
-  
-  updateRelationship: (id: string, changes: Partial<ModelRelationship>) => {
-    get().saveToHistory();
+    // IDが指定されていない場合は生成
+    const relationshipWithId = {
+      ...relationship,
+      id: relationship.id || uuidv4()
+    };
+    
     set(state => {
-      const relationship = state.relationships[id];
-      if (!relationship) return state;
-      
-      return {
+      const newState = {
+        ...state,
         relationships: {
           ...state.relationships,
-          [id]: { ...relationship, ...changes }
+          [relationshipWithId.id]: relationshipWithId
         }
+      };
+      
+      // 履歴への追加
+      const historyItem: HistoryItem = {
+        type: 'addRelationship',
+        data: { relationship: relationshipWithId },
+        reverse: () => get().removeRelationship(relationshipWithId.id),
+        forward: () => get().addRelationship(relationshipWithId)
+      };
+      
+      return {
+        ...newState,
+        history: [...state.history.slice(0, state.historyIndex + 1), historyItem],
+        historyIndex: state.historyIndex + 1
+      };
+    });
+    
+    return relationshipWithId.id;
+  },
+  
+  updateRelationship: (id: string, updates: Partial<ModelRelationship>) => {
+    const currentRelationship = get().relationships[id];
+    if (!currentRelationship) return;
+    
+    const originalRelationship = { ...currentRelationship };
+    const updatedRelationship = { ...currentRelationship, ...updates };
+    
+    set(state => {
+      const newState = {
+        ...state,
+        relationships: {
+          ...state.relationships,
+          [id]: updatedRelationship
+        }
+      };
+      
+      // 履歴への追加
+      const historyItem: HistoryItem = {
+        type: 'updateRelationship',
+        data: { id, updates, original: originalRelationship },
+        reverse: () => get().updateRelationship(id, originalRelationship),
+        forward: () => get().updateRelationship(id, updatedRelationship)
+      };
+      
+      return {
+        ...newState,
+        history: [...state.history.slice(0, state.historyIndex + 1), historyItem],
+        historyIndex: state.historyIndex + 1
       };
     });
   },
   
   removeRelationship: (id: string) => {
-    get().saveToHistory();
+    const relationshipToRemove = get().relationships[id];
+    if (!relationshipToRemove) return;
+    
     set(state => {
       const newRelationships = { ...state.relationships };
       delete newRelationships[id];
       
-      return { relationships: newRelationships };
+      const newState = {
+        ...state,
+        relationships: newRelationships
+      };
+      
+      // 履歴への追加
+      const historyItem: HistoryItem = {
+        type: 'removeRelationship',
+        data: { relationship: relationshipToRemove },
+        reverse: () => get().addRelationship(relationshipToRemove),
+        forward: () => get().removeRelationship(id)
+      };
+      
+      return {
+        ...newState,
+        history: [...state.history.slice(0, state.historyIndex + 1), historyItem],
+        historyIndex: state.historyIndex + 1
+      };
     });
   },
   
-  // SysML固有の関係操作
-  addSpecialization: (subId: string, superId: string) => {
-    get().saveToHistory();
-    const relationship: ModelRelationship = {
-      id: uuid(),
-      type: 'specialization',
-      sourceId: subId,
-      targetId: superId
+  // SysML固有関係操作
+  addSpecialization: (sourceId: string, targetId: string) => {
+    const specialization: ModelRelationship = {
+      id: uuidv4(),
+      type: 'Specialization',
+      sourceId,
+      targetId,
+      label: 'specializes'
     };
     
-    set(state => ({
-      relationships: { ...state.relationships, [relationship.id]: relationship }
-    }));
+    return get().addRelationship(specialization);
   },
   
   addFeatureMembership: (ownerId: string, featureId: string) => {
-    get().saveToHistory();
-    const relationship: ModelRelationship = {
-      id: uuid(),
-      type: 'featureMembership',
+    const membership: ModelRelationship = {
+      id: uuidv4(),
+      type: 'FeatureMembership',
       sourceId: ownerId,
-      targetId: featureId
+      targetId: featureId,
+      label: 'features'
     };
     
-    set(state => ({
-      relationships: { ...state.relationships, [relationship.id]: relationship }
-    }));
-    
-    // Feature のオーナーIDを設定
-    const feature = get().elements[featureId] as Feature;
-    if (feature && 'ownerId' in feature) {
-      feature.ownerId = ownerId;
-      set(state => ({
-        elements: { ...state.elements, [featureId]: feature }
-      }));
-    }
+    return get().addRelationship(membership);
   },
   
-  addRedefinition: (redefinerId: string, redefinedId: string) => {
-    get().saveToHistory();
-    const relationship: ModelRelationship = {
-      id: uuid(),
-      type: 'redefinition',
-      sourceId: redefinerId,
-      targetId: redefinedId
-    };
-    
-    set(state => ({
-      relationships: { ...state.relationships, [relationship.id]: relationship }
-    }));
-    
-    // Featureの場合、redefinitionIdsを更新
-    const redefiner = get().elements[redefinerId];
-    if (redefiner && 'redefinitionIds' in redefiner) {
-      const feature = redefiner as Feature;
-      if (!feature.redefinitionIds.includes(redefinedId)) {
-        feature.redefinitionIds.push(redefinedId);
-        set(state => ({
-          elements: { ...state.elements, [redefinerId]: feature }
-        }));
-      }
-    }
+  // UI操作
+  setSelectedElement: (id: string | undefined) => {
+    set({ 
+      selectedElementId: id,
+      selectedRelationshipId: undefined  // 要素選択時はリレーションシップ選択を解除
+    });
   },
   
-  addSubclassification: (subclassId: string, superclassId: string) => {
-    get().saveToHistory();
-    const relationship: ModelRelationship = {
-      id: uuid(),
-      type: 'subclassification',
-      sourceId: subclassId,
-      targetId: superclassId
-    };
-    
-    set(state => ({
-      relationships: { ...state.relationships, [relationship.id]: relationship }
-    }));
-  },
-  
-  // 選択操作
-  selectElement: (id: string | undefined) => {
-    set({ selectedElementId: id, selectedRelationshipId: undefined });
-  },
-  
-  selectRelationship: (id: string | undefined) => {
-    set({ selectedRelationshipId: id, selectedElementId: undefined });
+  setSelectedRelationship: (id: string | undefined) => {
+    set({ 
+      selectedRelationshipId: id,
+      selectedElementId: undefined  // リレーションシップ選択時は要素選択を解除
+    });
   },
   
   // 履歴操作
-  saveToHistory: () => {
-    set(state => {
-      const { elements, relationships } = state;
-      // ディープコピーのためのシリアライズと逆シリアライズ
-      const pastState = {
-        elements: JSON.parse(JSON.stringify(elements)),
-        relationships: JSON.parse(JSON.stringify(relationships))
-      };
-      
-      return {
-        history: {
-          past: [...state.history.past, pastState],
-          future: [] // 新しい履歴ポイントが作られたので未来はリセット
-        }
-      };
-    });
-  },
-  
   undo: () => {
-    set(state => {
-      const { past, future } = state.history;
-      
-      if (past.length === 0) return state;
-      
-      const newPast = [...past];
-      const previousState = newPast.pop();
-      
-      if (!previousState) return state;
-      
-      const currentState = {
-        elements: state.elements,
-        relationships: state.relationships
-      };
-      
-      return {
-        elements: previousState.elements,
-        relationships: previousState.relationships,
-        history: {
-          past: newPast,
-          future: [currentState, ...future]
-        }
-      };
-    });
+    const { historyIndex, history } = get();
+    if (historyIndex < 0) return;
+    
+    const item = history[historyIndex];
+    item.reverse();
+    
+    set({ historyIndex: historyIndex - 1 });
   },
   
   redo: () => {
-    set(state => {
-      const { past, future } = state.history;
-      
-      if (future.length === 0) return state;
-      
-      const newFuture = [...future];
-      const nextState = newFuture.shift();
-      
-      if (!nextState) return state;
-      
-      const currentState = {
-        elements: state.elements,
-        relationships: state.relationships
-      };
-      
-      return {
-        elements: nextState.elements,
-        relationships: nextState.relationships,
-        history: {
-          past: [...past, currentState],
-          future: newFuture
-        }
-      };
-    });
+    const { historyIndex, history } = get();
+    if (historyIndex >= history.length - 1) return;
+    
+    const item = history[historyIndex + 1];
+    item.forward();
+    
+    set({ historyIndex: historyIndex + 1 });
   },
   
-  // モデルの永続化
-  getModelAsJson: () => {
-    const { elements, relationships } = get();
-    
-    // モデル要素をシリアライズ可能な形式に変換
-    const serializedElements = Object.values(elements).map(element => {
-      if ('toObject' in element && typeof element.toObject === 'function') {
-        return (element as any).toObject();
-      }
-      return element;
-    });
-    
-    const model = {
-      elements: serializedElements,
-      relationships: Object.values(relationships)
-    };
-    
-    return JSON.stringify(model, null, 2);
-  },
-  
-  loadModelFromJson: (json: string) => {
-    try {
-      const data = JSON.parse(json);
-      
-      // 要素の復元
-      const elements: Record<string, ModelElement> = {};
-      
-      if (Array.isArray(data.elements)) {
-        data.elements.forEach((elementData: FeatureObject) => {
-          let element: ModelElement | undefined;
-          
-          switch (elementData.type) {
-            case 'Type':
-              element = Type.fromJSON(elementData);
-              break;
-            case 'Feature':
-              element = Feature.fromJSON(elementData);
-              break;
-            case 'PartDefinition':
-              element = PartDefinition.fromJSON(elementData);
-              break;
-            case 'InterfaceDefinition':
-              element = InterfaceDefinition.fromJSON(elementData);
-              break;
-            case 'ConnectionDefinition':
-              element = ConnectionDefinition.fromJSON(elementData);
-              break;
-            case 'ActionUsage':
-              element = ActionUsage.fromJSON(elementData);
-              break;
-            case 'PerformActionUsage':
-              element = PerformActionUsage.fromJSON(elementData);
-              break;
-            case 'IfActionUsage':
-              element = IfActionUsage.fromJSON(elementData);
-              break;
-            case 'LoopActionUsage':
-              element = LoopActionUsage.fromJSON(elementData);
-              break;
-            default:
-              console.warn(`未知の要素タイプ: ${elementData.type}`);
-          }
-          
-          if (element) {
-            elements[element.id] = element;
-          }
-        });
-      }
-      
-      // 関係の復元
-      const relationships: Record<string, ModelRelationship> = {};
-      
-      if (Array.isArray(data.relationships)) {
-        data.relationships.forEach((relData: any) => {
-          const relationship: ModelRelationship = {
-            id: relData.id || uuid(),
-            type: relData.type,
-            sourceId: relData.sourceId,
-            targetId: relData.targetId,
-            name: relData.name
-          };
-          
-          relationships[relationship.id] = relationship;
-        });
-      }
-      
-      set({
-        elements,
-        relationships,
-        history: {
-          past: [],
-          future: []
-        }
-      });
-      
-      return true;
-    } catch (error) {
-      console.error('モデルのJSONからの読み込みに失敗しました:', error);
-      return false;
-    }
-  },
-  
-  // モデルのリセットとサンプルデータ
+  // モデル全体操作
   resetModel: () => {
     set({
       elements: {},
       relationships: {},
       selectedElementId: undefined,
       selectedRelationshipId: undefined,
-      history: {
-        past: [],
-        future: []
-      }
+      history: [],
+      historyIndex: -1
     });
   },
   
   initializeSampleModel: () => {
+    // いったんリセット
     get().resetModel();
     
-    // サンプル PartDefinition (System) を作成
-    const system = new PartDefinition({
-      name: 'System',
-      description: 'Top-level system definition'
-    });
-    
-    // Subsystem PartDefinition を作成
-    const subsystem = new PartDefinition({
-      name: 'Subsystem',
-      description: 'A major subsystem'
-    });
-    
-    // Interface を作成
-    const interface1 = new InterfaceDefinition({
-      name: 'SystemInterface',
-      description: 'Main system interface'
-    });
-    
-    // Connection を作成
-    const connection = new ConnectionDefinition({
-      name: 'SystemToSubsystem',
-      description: 'Connection between system and subsystem'
-    });
-    
-    // 基本アクションを作成
-    const action = new ActionUsage({
-      name: 'MainAction',
-      description: 'Primary system action'
-    });
-    
-    // IF アクションを作成
-    const ifAction = new IfActionUsage({
-      name: 'DecisionPoint',
-      loopType: 'while',
-      condition: 'system.isActive',
-      branches: [
-        {
-          id: uuid(),
-          condition: 'status == "ok"',
-          actions: [],
-          isElse: false
-        },
-        {
-          id: uuid(),
-          actions: [],
-          isElse: true
-        }
-      ]
-    });
-    
-    // 状態の初期化
-    const initialElements: Record<string, ModelElement> = {
-      [system.id]: system,
-      [subsystem.id]: subsystem,
-      [interface1.id]: interface1,
-      [connection.id]: connection,
-      [action.id]: action,
-      [ifAction.id]: ifAction
+    // サンプルモデル要素の作成
+    const system = {
+      id: 'sys1',
+      name: 'Vehicle',
+      type: 'PartDefinition',
+      description: 'A sample vehicle system'
     };
     
-    // 関係を定義
-    const initialRelationships: Record<string, ModelRelationship> = {};
-    
-    // 特殊化関係（specializationRelationship）
-    const specRel: ModelRelationship = {
-      id: uuid(),
-      type: 'specialization',
-      sourceId: subsystem.id,
-      targetId: system.id,
-      name: 'inherits'
+    const engine = {
+      id: 'eng1',
+      name: 'Engine',
+      type: 'PartDefinition',
+      description: 'Vehicle engine'
     };
-    initialRelationships[specRel.id] = specRel;
     
-    // Feature Membership
-    const featureMembership: ModelRelationship = {
-      id: uuid(),
-      type: 'featureMembership',
-      sourceId: system.id,
-      targetId: action.id,
-      name: 'performs'
+    const transmission = {
+      id: 'trans1',
+      name: 'Transmission',
+      type: 'PartDefinition',
+      description: 'Power transmission system'
     };
-    initialRelationships[featureMembership.id] = featureMembership;
-    action.ownerId = system.id;
     
-    // ストアを更新
-    set({
-      elements: initialElements,
-      relationships: initialRelationships,
-      history: {
-        past: [],
-        future: []
-      }
+    const engineInterface = {
+      id: 'engIf1',
+      name: 'EnginePower',
+      type: 'InterfaceDefinition',
+      description: 'Engine power interface'
+    };
+    
+    const stateOff = {
+      id: 'state1',
+      name: 'Off',
+      type: 'StateDefinition',
+      description: 'Engine off state'
+    };
+    
+    const stateIdle = {
+      id: 'state2',
+      name: 'Idle',
+      type: 'StateDefinition',
+      description: 'Engine idle state'
+    };
+    
+    const stateRunning = {
+      id: 'state3',
+      name: 'Running',
+      type: 'StateDefinition',
+      description: 'Engine running state'
+    };
+    
+    // 要素の追加
+    get().addElement(system);
+    get().addElement(engine);
+    get().addElement(transmission);
+    get().addElement(engineInterface);
+    get().addElement(stateOff);
+    get().addElement(stateIdle);
+    get().addElement(stateRunning);
+    
+    // 関係の追加
+    get().addFeatureMembership('sys1', 'eng1');
+    get().addFeatureMembership('sys1', 'trans1');
+    get().addRelationship({
+      id: 'conn1',
+      type: 'ConnectionUsage',
+      sourceId: 'eng1',
+      targetId: 'trans1',
+      label: 'connects',
+      description: 'Power connection'
     });
+    
+    // 状態間の遷移
+    get().addRelationship({
+      id: 'trans1',
+      type: 'Transition',
+      sourceId: 'state1',
+      targetId: 'state2',
+      label: 'start',
+      description: 'Engine start transition'
+    });
+    
+    get().addRelationship({
+      id: 'trans2',
+      type: 'Transition',
+      sourceId: 'state2',
+      targetId: 'state3',
+      label: 'accelerate',
+      description: 'Engine acceleration'
+    });
+    
+    get().addRelationship({
+      id: 'trans3',
+      type: 'Transition',
+      sourceId: 'state3',
+      targetId: 'state1',
+      label: 'stop',
+      description: 'Engine stop'
+    });
+  },
+  
+  getModelAsJson: () => {
+    const { elements, relationships } = get();
+    return JSON.stringify({ elements, relationships }, null, 2);
+  },
+  
+  loadModelFromJson: (json: string) => {
+    try {
+      const { elements, relationships } = JSON.parse(json);
+      
+      // モデルをリセット
+      get().resetModel();
+      
+      // 要素を追加
+      Object.values(elements).forEach(element => {
+        get().addElement(element as ModelElement);
+      });
+      
+      // 関係を追加
+      Object.values(relationships).forEach(relationship => {
+        get().addRelationship(relationship as ModelRelationship);
+      });
+    } catch (error) {
+      console.error('Failed to load model from JSON:', error);
+      throw new Error(`Failed to load model: ${error}`);
+    }
   }
 }));
+
+// ストアのサブスクリプション機能を追加
+(useSysMLModelStore as any).subscribe = (callback: () => void) => {
+  let previousState = useSysMLModelStore.getState();
+  
+  return useSysMLModelStore.subscribe(state => {
+    if (state !== previousState) {
+      previousState = state;
+      callback();
+    }
+  });
+};

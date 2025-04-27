@@ -1,11 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import * as joint from 'jointjs';
 import { useSysMLModelStore } from '../store/sysmlStore';
-import { PartDefinition } from '../model/sysml2/PartDefinition';
-import { PortUsage } from '../model/sysml2/PortUsage';
-import { ConnectionUsage } from '../model/sysml2/ConnectionUsage';
-import { AttributeUsage } from '../model/sysml2/AttributeUsage';
-import { ModelElement } from '../store/sysmlStore';
 
 /**
  * 要素パレットアイテムの定義
@@ -20,237 +15,426 @@ interface PaletteItem {
  * SysML v2要素をJointJSで表示するためのDiagramEditorコンポーネント
  */
 const DiagramEditor: React.FC = () => {
-  // Refs for jointjs elements
   const paperRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<joint.dia.Graph | null>(null);
   const paperInstanceRef = useRef<joint.dia.Paper | null>(null);
-  const [selectedElement, setSelectedElement] = useState<{ id: string, type: string } | null>(null);
   
-  // SysML model store
   const sysmlStore = useSysMLModelStore();
+  const { elements, relationships, selectedElementId, selectedRelationshipId } = sysmlStore;
   
-  // Palette items
+  // パレットアイテムの定義
   const paletteItems: PaletteItem[] = [
-    { type: 'part', label: 'Block', icon: '📦' },
-    { type: 'port', label: 'Port', icon: '🔌' },
-    { type: 'attribute', label: 'Attribute', icon: '📝' },
-    { type: 'connection', label: 'Connection', icon: '↔️' }
+    { type: 'PartDefinition', label: 'Part Definition', icon: '📦' },
+    { type: 'InterfaceDefinition', label: 'Interface Definition', icon: '🔌' },
+    { type: 'ActionDefinition', label: 'Action Definition', icon: '⚙️' },
+    { type: 'StateDefinition', label: 'State Definition', icon: '🔄' },
+    { type: 'AttributeDefinition', label: 'Attribute Definition', icon: '📝' }
   ];
   
   /**
    * カスタムSysML v2要素の定義（JointJSの拡張）
    */
-  const initializeJointJsCustomElements = () => {
-    // PartDefinition（ブロック）の表現
-    joint.shapes.sysml = joint.shapes.sysml || {};
-    joint.shapes.sysml.Part = joint.dia.Element.extend({
-      defaults: joint.util.deepSupplement({
-        type: 'sysml.Part',
-        attrs: {
-          rect: { 
-            fill: '#FFFFFF', 
-            stroke: '#000000', 
-            'stroke-width': 2,
-            rx: 5, 
-            ry: 5, 
-            width: 120, 
-            height: 80 
-          },
-          '.title-rect': { 
-            fill: '#DDDDDD', 
-            stroke: '#000000', 
-            'stroke-width': 1,
-            height: 20 
-          },
-          '.title-text': {
-            'text-anchor': 'middle',
-            'font-size': 12,
-            'font-weight': 'bold',
-            'ref-y': 10,
-            'y-alignment': 'middle'
-          },
-          '.content-text': {
-            'ref-y': 25,
-            'y-alignment': 'top',
-            'font-size': 10
-          }
-        }
-      }, joint.dia.Element.prototype.defaults)
-    });
-    
-    // PortUsageの表現
-    joint.shapes.sysml.Port = joint.dia.Element.extend({
-      defaults: joint.util.deepSupplement({
-        type: 'sysml.Port',
-        size: { width: 12, height: 12 },
-        attrs: {
-          rect: { 
-            fill: '#4B9CD3', 
-            stroke: '#000000', 
-            'stroke-width': 1,
-            width: 12, 
-            height: 12 
-          },
-          text: {
-            'text-anchor': 'middle',
-            'font-size': 8,
-            'ref-y': 16,
-            'y-alignment': 'top'
-          }
-        }
-      }, joint.dia.Element.prototype.defaults)
-    });
-    
-    // ConnectionUsageの表現
-    joint.shapes.sysml.Connection = joint.dia.Link.extend({
-      defaults: joint.util.deepSupplement({
-        type: 'sysml.Connection',
-        attrs: {
-          '.connection': { 
-            stroke: '#000000', 
-            'stroke-width': 1.5 
-          },
-          '.marker-target': { 
-            fill: '#000000', 
-            stroke: '#000000', 
-            d: 'M 10 0 L 0 5 L 10 10 z'
-          },
-          '.connection-label': {
-            'font-size': 10,
-            'font-weight': 'bold'
-          }
-        },
-        labels: [{
-          position: 0.5,
+  useEffect(() => {
+    if (!joint.shapes.sysml) {
+      // SysMLの名前空間を作成
+      joint.shapes.sysml = {};
+      
+      // 共通の基本形状 - すべてのSysML要素の基底
+      joint.shapes.sysml.Base = joint.shapes.basic.Rect.extend({
+        defaults: joint.util.defaultsDeep({
+          type: 'sysml.Base',
           attrs: {
-            text: {
-              'font-size': 10,
-              'font-weight': 'bold'
-            },
             rect: {
-              fill: 'white'
+              fill: '#ffffff',
+              stroke: '#000000',
+              'stroke-width': 2,
+              rx: 5,
+              ry: 5
+            },
+            text: {
+              'font-size': 14,
+              'font-family': 'Arial, sans-serif',
+              'font-weight': 'bold',
+              fill: '#000000',
+              'text-anchor': 'middle',
+              'ref-x': .5,
+              'ref-y': .2,
+              'y-alignment': 'middle'
+            },
+            '.type-text': {
+              'font-size': 12,
+              'font-family': 'Arial, sans-serif',
+              'font-weight': 'normal',
+              'font-style': 'italic',
+              fill: '#666666',
+              'text-anchor': 'middle',
+              'ref-x': .5,
+              'ref-y': .5,
+              'y-alignment': 'middle'
             }
-          }
-        }]
-      }, joint.dia.Link.prototype.defaults)
-    });
-    
-    // AttributeUsageの表現（テキスト表示用）
-    joint.shapes.sysml.Attribute = joint.dia.Element.extend({
-      defaults: joint.util.deepSupplement({
-        type: 'sysml.Attribute',
-        attrs: {
-          text: {
-            'font-size': 10,
-            'text-anchor': 'start'
-          }
-        }
-      }, joint.dia.Element.prototype.defaults)
-    });
-  };
+          },
+          sysmlType: 'Element',
+          sysmlId: ''
+        }, joint.shapes.basic.Rect.prototype.defaults)
+      });
+      
+      // PartDefinition形状
+      joint.shapes.sysml.PartDefinition = joint.shapes.sysml.Base.extend({
+        defaults: joint.util.defaultsDeep({
+          type: 'sysml.PartDefinition',
+          size: { width: 160, height: 80 },
+          attrs: {
+            rect: { fill: '#E1F5FE' },
+            text: { text: 'PartDefinition' },
+            '.type-text': { text: '«PartDefinition»' }
+          },
+          sysmlType: 'PartDefinition'
+        }, joint.shapes.sysml.Base.prototype.defaults)
+      });
+      
+      // InterfaceDefinition形状
+      joint.shapes.sysml.InterfaceDefinition = joint.shapes.sysml.Base.extend({
+        defaults: joint.util.defaultsDeep({
+          type: 'sysml.InterfaceDefinition',
+          size: { width: 160, height: 80 },
+          attrs: {
+            rect: { fill: '#E8F5E9' },
+            text: { text: 'InterfaceDefinition' },
+            '.type-text': { text: '«InterfaceDefinition»' }
+          },
+          sysmlType: 'InterfaceDefinition'
+        }, joint.shapes.sysml.Base.prototype.defaults)
+      });
+      
+      // ActionDefinition形状
+      joint.shapes.sysml.ActionDefinition = joint.shapes.sysml.Base.extend({
+        defaults: joint.util.defaultsDeep({
+          type: 'sysml.ActionDefinition',
+          size: { width: 160, height: 80 },
+          attrs: {
+            rect: { fill: '#FFF9C4', rx: 20, ry: 20 },
+            text: { text: 'ActionDefinition' },
+            '.type-text': { text: '«ActionDefinition»' }
+          },
+          sysmlType: 'ActionDefinition'
+        }, joint.shapes.sysml.Base.prototype.defaults)
+      });
+      
+      // StateDefinition形状
+      joint.shapes.sysml.StateDefinition = joint.shapes.sysml.Base.extend({
+        defaults: joint.util.defaultsDeep({
+          type: 'sysml.StateDefinition',
+          size: { width: 160, height: 80 },
+          attrs: {
+            rect: { fill: '#E0E0E0', rx: 30, ry: 30 },
+            text: { text: 'StateDefinition' },
+            '.type-text': { text: '«StateDefinition»' }
+          },
+          sysmlType: 'StateDefinition'
+        }, joint.shapes.sysml.Base.prototype.defaults)
+      });
+      
+      // AttributeDefinition形状
+      joint.shapes.sysml.AttributeDefinition = joint.shapes.sysml.Base.extend({
+        defaults: joint.util.defaultsDeep({
+          type: 'sysml.AttributeDefinition',
+          size: { width: 160, height: 60 },
+          attrs: {
+            rect: { fill: '#FFEBEE' },
+            text: { text: 'AttributeDefinition' },
+            '.type-text': { text: '«AttributeDefinition»' }
+          },
+          sysmlType: 'AttributeDefinition'
+        }, joint.shapes.sysml.Base.prototype.defaults)
+      });
+      
+      // 特化関係のリンク
+      joint.shapes.sysml.Specialization = joint.dia.Link.extend({
+        defaults: joint.util.defaultsDeep({
+          type: 'sysml.Specialization',
+          attrs: {
+            '.connection': {
+              stroke: '#000000',
+              'stroke-width': 2,
+              'stroke-dasharray': '0'
+            },
+            '.marker-target': {
+              fill: '#ffffff',
+              stroke: '#000000',
+              d: 'M 20 0 L 0 10 L 20 20 z'
+            },
+            '.marker-vertices': { display: 'none' },
+            '.marker-arrowheads': { display: 'none' },
+            '.link-tools': { display: 'none' }
+          },
+          labels: [
+            {
+              position: 0.5,
+              attrs: {
+                text: {
+                  text: 'specializes',
+                  'font-size': 12,
+                  'font-family': 'Arial, sans-serif'
+                },
+                rect: {
+                  fill: 'white'
+                }
+              }
+            }
+          ],
+          sysmlType: 'Specialization',
+          sysmlId: ''
+        }, joint.dia.Link.prototype.defaults)
+      });
+      
+      // 特徴メンバーシップのリンク
+      joint.shapes.sysml.FeatureMembership = joint.dia.Link.extend({
+        defaults: joint.util.defaultsDeep({
+          type: 'sysml.FeatureMembership',
+          attrs: {
+            '.connection': {
+              stroke: '#000000',
+              'stroke-width': 2,
+              'stroke-dasharray': '0'
+            },
+            '.marker-target': {
+              fill: '#000000',
+              stroke: '#000000',
+              d: 'M 10 0 L 0 5 L 10 10 z'
+            },
+            '.marker-vertices': { display: 'none' },
+            '.marker-arrowheads': { display: 'none' },
+            '.link-tools': { display: 'none' }
+          },
+          labels: [
+            {
+              position: 0.5,
+              attrs: {
+                text: {
+                  text: 'features',
+                  'font-size': 12,
+                  'font-family': 'Arial, sans-serif'
+                },
+                rect: {
+                  fill: 'white'
+                }
+              }
+            }
+          ],
+          sysmlType: 'FeatureMembership',
+          sysmlId: ''
+        }, joint.dia.Link.prototype.defaults)
+      });
+      
+      // 接続関係のリンク
+      joint.shapes.sysml.Connection = joint.dia.Link.extend({
+        defaults: joint.util.defaultsDeep({
+          type: 'sysml.Connection',
+          attrs: {
+            '.connection': {
+              stroke: '#000000',
+              'stroke-width': 2,
+              'stroke-dasharray': '0'
+            },
+            '.marker-vertices': { display: 'none' },
+            '.marker-arrowheads': { display: 'none' },
+            '.link-tools': { display: 'none' }
+          },
+          labels: [
+            {
+              position: 0.5,
+              attrs: {
+                text: {
+                  text: 'connects',
+                  'font-size': 12,
+                  'font-family': 'Arial, sans-serif'
+                },
+                rect: {
+                  fill: 'white'
+                }
+              }
+            }
+          ],
+          sysmlType: 'ConnectionUsage',
+          sysmlId: ''
+        }, joint.dia.Link.prototype.defaults)
+      });
+      
+      // 状態遷移のリンク
+      joint.shapes.sysml.Transition = joint.dia.Link.extend({
+        defaults: joint.util.defaultsDeep({
+          type: 'sysml.Transition',
+          attrs: {
+            '.connection': {
+              stroke: '#000000',
+              'stroke-width': 2,
+              'stroke-dasharray': '0'
+            },
+            '.marker-target': {
+              fill: '#000000',
+              stroke: '#000000',
+              d: 'M 10 0 L 0 5 L 10 10 z'
+            },
+            '.marker-vertices': { display: 'none' },
+            '.marker-arrowheads': { display: 'none' },
+            '.link-tools': { display: 'none' }
+          },
+          labels: [
+            {
+              position: 0.5,
+              attrs: {
+                text: {
+                  text: 'transition',
+                  'font-size': 12,
+                  'font-family': 'Arial, sans-serif'
+                },
+                rect: {
+                  fill: 'white'
+                }
+              }
+            }
+          ],
+          sysmlType: 'Transition',
+          sysmlId: ''
+        }, joint.dia.Link.prototype.defaults)
+      });
+    }
+  }, []);
   
   /**
    * JointJS初期化関数
    */
-  const initializeJointJs = () => {
-    if (!paperRef.current) return;
-    
-    // カスタム要素の定義
-    initializeJointJsCustomElements();
-    
-    // JointJSグラフ作成
-    const graph = new joint.dia.Graph();
-    graphRef.current = graph;
-    
-    // JointJSペーパー（描画領域）作成
-    const paper = new joint.dia.Paper({
-      el: paperRef.current,
-      model: graph,
-      width: 1000,
-      height: 600,
-      gridSize: 10,
-      drawGrid: true,
-      background: {
-        color: '#F8F9FA'
-      },
-      interactive: true,
-      defaultLink: new joint.shapes.sysml.Connection(),
-      linkPinning: false,
-      validateConnection: function(cellViewS, magnetS, cellViewT, magnetT) {
-        // ポート間の接続のみ許可（PartとPort間、Port同士）
-        return (
-          (cellViewS.model.get('type') === 'sysml.Port' || magnetS) && 
-          (cellViewT.model.get('type') === 'sysml.Port' || magnetT) &&
-          cellViewS !== cellViewT
-        );
-      }
-    });
-    paperInstanceRef.current = paper;
-    
-    // イベントリスナー設定
-    paper.on('element:pointerdown', function(elementView) {
-      const element = elementView.model;
-      setSelectedElement({
-        id: element.id as string,
-        type: element.get('type') as string
-      });
-    });
-    
-    paper.on('blank:pointerdown', function() {
-      setSelectedElement(null);
-    });
-    
-    // 要素の移動を検知し、ストアを更新
-    paper.on('element:pointerup', function(elementView) {
-      const element = elementView.model;
-      const position = element.position();
-      const elementId = element.id as string;
+  useEffect(() => {
+    if (paperRef.current && !graphRef.current) {
+      // グラフとペーパーの初期化
+      const graph = new joint.dia.Graph();
+      graphRef.current = graph;
       
-      // 要素タイプに基づいてストア更新
-      const elementType = element.get('type');
-      if (elementType === 'sysml.Part' && elementId in sysmlStore.elements) {
-        sysmlStore.updateElement(elementId, { position: { x: position.x, y: position.y } });
-      } else if (elementType === 'sysml.Port' && elementId in sysmlStore.elements) {
-        // ポートの位置更新
-        const portElement = sysmlStore.elements[elementId] as PortUsage;
-        if (portElement) {
-          sysmlStore.updateElement(elementId, { position: { x: position.x, y: position.y } });
+      const paper = new joint.dia.Paper({
+        el: paperRef.current,
+        model: graph,
+        width: '100%',
+        height: '100%',
+        gridSize: 10,
+        drawGrid: true,
+        background: {
+          color: '#F8F9FA'
+        },
+        interactive: {
+          linkMove: true,
+          vertexMove: true,
+          elementMove: true
         }
-      }
-    });
-    
-    // リンク（接続）の更新を検知
-    paper.on('link:connect', function(linkView) {
-      const link = linkView.model;
-      const sourceId = link.source().id;
-      const targetId = link.target().id;
+      });
+      paperInstanceRef.current = paper;
       
-      // ConnectionUsageを作成または更新
-      const linkId = link.id as string;
-      if (linkId in sysmlStore.elements) {
-        // 既存の接続を更新
-        sysmlStore.updateElement(linkId, {
-          sourceEndId: sourceId, 
-          targetEndId: targetId
-        });
-      } else {
-        // 新しい接続を作成
-        const newConnection = new ConnectionUsage({
-          id: linkId,
-          name: 'Connection',
-          sourceEndId: sourceId,
-          targetEndId: targetId
-        });
-        sysmlStore.addElement(newConnection);
-      }
-    });
-  };
+      // ペーパーのイベントを設定
+      
+      // 要素クリック時の選択処理
+      paper.on('cell:pointerclick', (cellView) => {
+        const cell = cellView.model;
+        console.log('Selected cell:', cell.id, cell.attributes.sysmlId);
+        
+        // 要素またはリレーションシップをストアで選択
+        if (cell.isLink()) {
+          const sysmlId = cell.attributes.sysmlId;
+          if (sysmlId) {
+            sysmlStore.setSelectedRelationship(sysmlId);
+            console.log('Selected relationship:', sysmlStore.getState().selectedRelationshipId);
+          }
+        } else {
+          const sysmlId = cell.attributes.sysmlId;
+          if (sysmlId) {
+            sysmlStore.setSelectedElement(sysmlId);
+            console.log('Selected element:', sysmlStore.getState().selectedElementId);
+          }
+        }
+      });
+      
+      // 要素ダブルクリック時の編集処理
+      paper.on('cell:pointerdblclick', (cellView) => {
+        const cell = cellView.model;
+        console.log('Double-clicked cell:', cell.id, cell.attributes.sysmlId);
+        
+        if (!cell.isLink()) {
+          const sysmlId = cell.attributes.sysmlId;
+          if (sysmlId) {
+            // 編集モードを開始（必要に応じてダイアログ表示など）
+            sysmlStore.setSelectedElement(sysmlId);
+            console.log('Editing element:', sysmlStore.getState().selectedElementId);
+          }
+        }
+      });
+      
+      // 要素ドラッグ中の処理
+      paper.on('cell:pointerdown', () => {
+        // ドラッグ中の視覚的フィードバック（必要に応じて）
+      });
+      
+      // 要素位置変更完了時の処理
+      paper.on('element:pointerup', (elementView) => {
+        const element = elementView.model;
+        const position = element.position();
+        const sysmlId = element.attributes.sysmlId;
+        
+        if (sysmlId) {
+          // モデル上の位置を更新
+          sysmlStore.updateElement(sysmlId, {
+            position: { x: position.x, y: position.y }
+          });
+          console.log('Updated position:', position, 'for element:', sysmlId);
+        }
+      });
+      
+      // リンク接続完了時の処理
+      paper.on('link:connect', (linkView) => {
+        const link = linkView.model;
+        const sysmlType = link.attributes.sysmlType;
+        const sourceId = link.getSourceElement()?.attributes.sysmlId;
+        const targetId = link.getTargetElement()?.attributes.sysmlId;
+        
+        if (sourceId && targetId) {
+          // リレーションシップタイプに応じてモデルに追加
+          if (sysmlType === 'Specialization') {
+            const relId = sysmlStore.addSpecialization(sourceId, targetId);
+            link.attributes.sysmlId = relId;
+          } else if (sysmlType === 'FeatureMembership') {
+            const relId = sysmlStore.addFeatureMembership(sourceId, targetId);
+            link.attributes.sysmlId = relId;
+          } else if (sysmlType === 'ConnectionUsage') {
+            const relId = sysmlStore.addRelationship({
+              type: 'ConnectionUsage',
+              sourceId,
+              targetId,
+              label: 'connects'
+            });
+            link.attributes.sysmlId = relId;
+          } else if (sysmlType === 'Transition') {
+            const relId = sysmlStore.addRelationship({
+              type: 'Transition',
+              sourceId,
+              targetId,
+              label: 'transition'
+            });
+            link.attributes.sysmlId = relId;
+          }
+          
+          console.log('Created relationship:', sysmlType, 'from', sourceId, 'to', targetId);
+        }
+      });
+      
+      // モデルからJointJS図形への同期処理開始
+      syncModelToJointJS();
+    }
+  }, []);
   
   /**
    * パレットアイテムのドラッグアンドドロップ処理
    */
   const handleDragStart = (event: React.DragEvent<HTMLDivElement>, item: PaletteItem) => {
-    event.dataTransfer.setData('application/x-sysml-element', item.type);
+    event.dataTransfer.setData('text/plain', item.type);
+    // ドラッグ中の視覚的フィードバック用のデータ
+    event.dataTransfer.effectAllowed = 'copy';
   };
   
   /**
@@ -259,18 +443,19 @@ const DiagramEditor: React.FC = () => {
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     
-    // ドロップされた要素のタイプを取得
-    const elementType = event.dataTransfer.getData('application/x-sysml-element');
-    if (!elementType || !graphRef.current || !paperInstanceRef.current) return;
+    // ドロップ位置の取得とペーパー座標への変換
+    const paper = paperInstanceRef.current;
+    if (!paper) return;
     
-    // ドロップ位置の計算（ペーパー内の相対座標に変換）
-    const paperElement = paperInstanceRef.current.el;
-    const paperRect = paperElement.getBoundingClientRect();
-    const x = event.clientX - paperRect.left;
-    const y = event.clientY - paperRect.top;
+    const paperRect = paper.el.getBoundingClientRect();
+    const dropX = event.clientX - paperRect.left;
+    const dropY = event.clientY - paperRect.top;
     
-    // 要素タイプに応じた処理
-    createElementByType(elementType, x, y);
+    // ドラッグされた要素の型を取得
+    const elementType = event.dataTransfer.getData('text/plain');
+    
+    // 新しい要素をモデルに追加し、グラフに反映
+    createElementAtPosition(elementType, dropX, dropY);
   };
   
   /**
@@ -278,333 +463,468 @@ const DiagramEditor: React.FC = () => {
    */
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
   };
   
   /**
    * 要素タイプに応じたJointJS要素とSysML要素の作成
    */
-  const createElementByType = (elementType: string, x: number, y: number) => {
-    if (!graphRef.current) return;
+  const createElementAtPosition = (elementType: string, x: number, y: number) => {
+    // 新しいSysML要素の作成
+    const newElement = {
+      id: uuidv4(),
+      name: `New ${elementType}`,
+      type: elementType,
+      description: `A new ${elementType} created at (${x},${y})`,
+      position: { x, y }
+    };
     
-    switch (elementType) {
-      case 'part': {
-        // PartDefinition作成
-        const partDef = new PartDefinition({
-          name: 'NewBlock',
-          description: 'A new block'
-        });
-        
-        // JointJS要素作成
-        const blockElement = new joint.shapes.sysml.Part({
-          id: partDef.id,
-          position: { x, y },
-          size: { width: 120, height: 80 },
-          attrs: {
-            '.title-text': { text: partDef.name },
-            '.content-text': { text: partDef.description || '' }
-          }
-        });
-        
-        // グラフに追加
-        graphRef.current.addCell(blockElement);
-        
-        // SysMLストアに追加
-        sysmlStore.addElement(partDef);
-        
-        // 要素選択
-        setSelectedElement({ id: partDef.id, type: 'part' });
-        openElementEditor(partDef.id, 'part');
-        break;
-      }
-      
-      case 'port': {
-        if (!selectedElement || selectedElement.type !== 'sysml.Part') {
-          alert('先にブロックを選択してください');
-          return;
-        }
-        
-        // PortUsage作成
-        const portUsage = new PortUsage({
-          name: 'NewPort',
-          ownerId: selectedElement.id,
-          position: { x, y }
-        });
-        
-        // JointJS要素作成
-        const portElement = new joint.shapes.sysml.Port({
-          id: portUsage.id,
-          position: { x, y },
-          attrs: {
-            text: { text: portUsage.name }
-          }
-        });
-        
-        // グラフに追加
-        graphRef.current.addCell(portElement);
-        
-        // SysMLストアに追加
-        sysmlStore.addElement(portUsage);
-        
-        // 選択されたブロックとの関係を設定
-        sysmlStore.addFeatureMembership(selectedElement.id, portUsage.id);
-        
-        // 要素選択
-        setSelectedElement({ id: portUsage.id, type: 'port' });
-        openElementEditor(portUsage.id, 'port');
-        break;
-      }
-      
-      case 'attribute': {
-        if (!selectedElement || selectedElement.type !== 'sysml.Part') {
-          alert('先にブロックを選択してください');
-          return;
-        }
-        
-        // AttributeUsage作成
-        const attributeUsage = new AttributeUsage({
-          name: 'NewAttribute',
-          ownerId: selectedElement.id
-        });
-        
-        // SysMLストアに追加
-        sysmlStore.addElement(attributeUsage);
-        
-        // 選択されたブロックとの関係を設定
-        sysmlStore.addFeatureMembership(selectedElement.id, attributeUsage.id);
-        
-        // 属性はビジュアル要素として追加しない（プロパティパネルで表示）
-        openElementEditor(attributeUsage.id, 'attribute');
-        break;
-      }
-      
-      case 'connection': {
-        // 接続モードを有効化（ユーザーが手動で接続を作成）
-        if (paperInstanceRef.current) {
-          paperInstanceRef.current.setInteractivity({
-            linkModel: joint.shapes.sysml.Connection,
-            arrowheadMove: true
-          });
-        }
-        break;
-      }
+    // モデルストアに追加
+    const sysmlId = sysmlStore.addElement(newElement);
+    
+    // JointJSの図形を作成
+    const jointJsShape = createJointJSShape(elementType, newElement.name, sysmlId, x, y);
+    
+    // グラフに追加
+    if (graphRef.current && jointJsShape) {
+      graphRef.current.addCell(jointJsShape);
     }
+    
+    return sysmlId;
   };
   
   /**
    * 要素編集ダイアログを開く
    */
-  const openElementEditor = (elementId: string, elementType: string) => {
-    // 簡易的な実装 - 実際にはモーダルやフォーム表示などを実装
-    console.log(`Editing element: ${elementId} of type ${elementType}`);
-    
-    if (elementType === 'part') {
-      const name = prompt('ブロック名を入力:', 'NewBlock');
-      if (name) {
-        // ストア更新
-        sysmlStore.updateElement(elementId, { name });
-        
-        // JointJS要素の表示更新
-        if (graphRef.current) {
-          const element = graphRef.current.getCell(elementId);
-          if (element && element.isElement()) {
-            element.attr('.title-text/text', name);
-          }
-        }
-      }
-    } else if (elementType === 'port') {
-      const name = prompt('ポート名を入力:', 'NewPort');
-      if (name) {
-        sysmlStore.updateElement(elementId, { name });
-        
-        if (graphRef.current) {
-          const element = graphRef.current.getCell(elementId);
-          if (element && element.isElement()) {
-            element.attr('text/text', name);
-          }
-        }
-      }
-    } else if (elementType === 'attribute') {
-      const name = prompt('属性名を入力:', 'NewAttribute');
-      const type = prompt('属性の型を入力:', 'String');
-      
-      if (name && type) {
-        sysmlStore.updateElement(elementId, { 
-          name,
-          typeId: type
-        });
-      }
-    }
+  const openElementEditor = (elementId: string) => {
+    sysmlStore.setSelectedElement(elementId);
   };
   
   /**
    * ストアの変更を監視してJointJS要素に反映
    */
   useEffect(() => {
-    // JointJS初期化
-    initializeJointJs();
+    // サブスクリプション設定
+    // TODO: Zustand自体のサブスクライブを実装
     
-    // クリーンアップ関数
     return () => {
-      if (graphRef.current) {
-        graphRef.current.clear();
-      }
+      // クリーンアップ
     };
-  }, []);
+  }, [sysmlStore]);
   
   /**
    * ストアに変化があったときの更新処理
    */
-  useEffect(() => {
+  const syncModelToJointJS = () => {
     if (!graphRef.current) return;
     
-    // ストアの要素をJointJS要素に同期
-    Object.values(sysmlStore.elements).forEach(element => {
-      if (element instanceof PartDefinition) {
-        // すでに存在する要素か確認
-        let jointElement = graphRef.current?.getCell(element.id);
+    const graph = graphRef.current;
+    const modelElements = sysmlStore.elements;
+    const modelRelationships = sysmlStore.relationships;
+    
+    // グラフをクリア
+    graph.clear();
+    
+    // 要素をグラフに追加
+    Object.values(modelElements).forEach(element => {
+      // 位置情報がある場合はそれを使用、ない場合はデフォルト位置
+      const position = element.position || { x: 50, y: 50 };
+      
+      const jointShape = createJointJSShape(
+        element.type,
+        element.name,
+        element.id,
+        position.x,
+        position.y
+      );
+      
+      if (jointShape) {
+        graph.addCell(jointShape);
+      }
+    });
+    
+    // リレーションシップをグラフに追加
+    Object.values(modelRelationships).forEach(rel => {
+      const sourceCell = graph.getElements().find(el => el.attributes.sysmlId === rel.sourceId);
+      const targetCell = graph.getElements().find(el => el.attributes.sysmlId === rel.targetId);
+      
+      if (sourceCell && targetCell) {
+        const linkShape = createJointJSLink(
+          rel.type,
+          rel.id,
+          sourceCell,
+          targetCell,
+          rel.label
+        );
         
-        if (!jointElement) {
-          // 新しいブロック要素を作成
-          jointElement = new joint.shapes.sysml.Part({
-            id: element.id,
-            position: { x: 100, y: 100 }, // デフォルト位置
-            size: { width: 120, height: 80 },
-            attrs: {
-              '.title-text': { text: element.name },
-              '.content-text': { text: element.description || '' }
-            }
-          });
-          graphRef.current?.addCell(jointElement);
-        } else if (jointElement.isElement()) {
-          // 既存要素の更新
-          jointElement.attr('.title-text/text', element.name);
-          jointElement.attr('.content-text/text', element.description || '');
-        }
-      } else if (element instanceof PortUsage) {
-        // ポート要素の同期
-        let jointElement = graphRef.current?.getCell(element.id);
-        
-        if (!jointElement && element.position) {
-          // 新しいポート要素を作成
-          jointElement = new joint.shapes.sysml.Port({
-            id: element.id,
-            position: element.position,
-            attrs: {
-              text: { text: element.name }
-            }
-          });
-          graphRef.current?.addCell(jointElement);
-        } else if (jointElement && jointElement.isElement()) {
-          // 既存ポートの更新
-          jointElement.attr('text/text', element.name);
-          if (element.position) {
-            jointElement.position(element.position.x, element.position.y);
-          }
-        }
-      } else if (element instanceof ConnectionUsage) {
-        // 接続要素の同期
-        let jointElement = graphRef.current?.getCell(element.id);
-        
-        if (!jointElement && element.sourceEndId && element.targetEndId) {
-          // 新しい接続要素を作成
-          jointElement = new joint.shapes.sysml.Connection({
-            id: element.id,
-            source: { id: element.sourceEndId },
-            target: { id: element.targetEndId },
-            labels: [{
-              position: 0.5,
-              attrs: { text: { text: element.name || 'Connection' } }
-            }]
-          });
-          graphRef.current?.addCell(jointElement);
-        } else if (jointElement && jointElement.isLink()) {
-          // 既存接続の更新
-          const link = jointElement as joint.dia.Link;
-          link.label(0, { attrs: { text: { text: element.name || 'Connection' } } });
-          
-          if (element.sourceEndId && element.targetEndId) {
-            link.source({ id: element.sourceEndId });
-            link.target({ id: element.targetEndId });
-          }
-          
-          // 中間点の設定
-          if (element.vertices && element.vertices.length > 0) {
-            link.vertices(element.vertices);
-          }
+        if (linkShape) {
+          graph.addCell(linkShape);
         }
       }
     });
-  }, [sysmlStore.elements]);
+    
+    // 選択状態の適用
+    if (selectedElementId) {
+      const selectedShape = graph.getElements().find(el => el.attributes.sysmlId === selectedElementId);
+      if (selectedShape && paperInstanceRef.current) {
+        paperInstanceRef.current.findViewByModel(selectedShape).highlight();
+      }
+    }
+    
+    if (selectedRelationshipId) {
+      const selectedLink = graph.getLinks().find(link => link.attributes.sysmlId === selectedRelationshipId);
+      if (selectedLink && paperInstanceRef.current) {
+        paperInstanceRef.current.findViewByModel(selectedLink).highlight();
+      }
+    }
+  };
+  
+  /**
+   * 要素タイプに基づいてJointJS図形を作成
+   */
+  const createJointJSShape = (type: string, name: string, sysmlId: string, x: number, y: number) => {
+    let shape = null;
+    
+    switch (type) {
+      case 'PartDefinition':
+        shape = new joint.shapes.sysml.PartDefinition({
+          position: { x, y },
+          attrs: {
+            text: { text: name },
+            '.type-text': { text: '«PartDefinition»' }
+          },
+          sysmlId: sysmlId
+        });
+        break;
+        
+      case 'InterfaceDefinition':
+        shape = new joint.shapes.sysml.InterfaceDefinition({
+          position: { x, y },
+          attrs: {
+            text: { text: name },
+            '.type-text': { text: '«InterfaceDefinition»' }
+          },
+          sysmlId: sysmlId
+        });
+        break;
+        
+      case 'ActionDefinition':
+        shape = new joint.shapes.sysml.ActionDefinition({
+          position: { x, y },
+          attrs: {
+            text: { text: name },
+            '.type-text': { text: '«ActionDefinition»' }
+          },
+          sysmlId: sysmlId
+        });
+        break;
+        
+      case 'StateDefinition':
+        shape = new joint.shapes.sysml.StateDefinition({
+          position: { x, y },
+          attrs: {
+            text: { text: name },
+            '.type-text': { text: '«StateDefinition»' }
+          },
+          sysmlId: sysmlId
+        });
+        break;
+        
+      case 'AttributeDefinition':
+        shape = new joint.shapes.sysml.AttributeDefinition({
+          position: { x, y },
+          attrs: {
+            text: { text: name },
+            '.type-text': { text: '«AttributeDefinition»' }
+          },
+          sysmlId: sysmlId
+        });
+        break;
+        
+      default:
+        console.warn(`Unknown element type: ${type}`);
+        break;
+    }
+    
+    return shape;
+  };
+  
+  /**
+   * リレーションシップタイプに基づいてJointJSリンクを作成
+   */
+  const createJointJSLink = (type: string, sysmlId: string, source: joint.dia.Element, target: joint.dia.Element, label?: string) => {
+    let link = null;
+    
+    switch (type) {
+      case 'Specialization':
+        link = new joint.shapes.sysml.Specialization({
+          source: { id: source.id },
+          target: { id: target.id },
+          sysmlId: sysmlId
+        });
+        if (label) {
+          link.label(0, { attrs: { text: { text: label } } });
+        }
+        break;
+        
+      case 'FeatureMembership':
+        link = new joint.shapes.sysml.FeatureMembership({
+          source: { id: source.id },
+          target: { id: target.id },
+          sysmlId: sysmlId
+        });
+        if (label) {
+          link.label(0, { attrs: { text: { text: label } } });
+        }
+        break;
+        
+      case 'ConnectionUsage':
+        link = new joint.shapes.sysml.Connection({
+          source: { id: source.id },
+          target: { id: target.id },
+          sysmlId: sysmlId
+        });
+        if (label) {
+          link.label(0, { attrs: { text: { text: label } } });
+        }
+        break;
+        
+      case 'Transition':
+        link = new joint.shapes.sysml.Transition({
+          source: { id: source.id },
+          target: { id: target.id },
+          sysmlId: sysmlId
+        });
+        if (label) {
+          link.label(0, { attrs: { text: { text: label } } });
+        }
+        break;
+        
+      default:
+        console.warn(`Unknown relationship type: ${type}`);
+        // デフォルトの接続として作成
+        link = new joint.dia.Link({
+          source: { id: source.id },
+          target: { id: target.id },
+          attrs: {
+            '.connection': { stroke: '#333333' }
+          },
+          labels: [
+            {
+              position: 0.5,
+              attrs: { text: { text: label || type } }
+            }
+          ],
+          sysmlId: sysmlId
+        });
+        break;
+    }
+    
+    return link;
+  };
+  
+  /**
+   * UUID生成関数
+   */
+  function uuidv4() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+  
+  /**
+   * 編集／操作ツールバー
+   */
+  const DiagramToolbar = () => (
+    <div className="diagram-toolbar">
+      <button onClick={() => sysmlStore.undo()} title="Undo">
+        ↩️ Undo
+      </button>
+      <button onClick={() => sysmlStore.redo()} title="Redo">
+        ↪️ Redo
+      </button>
+      <button onClick={() => syncModelToJointJS()} title="Refresh Diagram">
+        🔄 Refresh
+      </button>
+      <button onClick={() => {
+        const json = sysmlStore.getModelAsJson();
+        console.log(json);
+        // ブラウザでJSON保存ダイアログを表示
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'sysml-model.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }} title="Export to JSON">
+        💾 Export
+      </button>
+      <input
+        type="file"
+        id="import-json"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              const json = event.target?.result as string;
+              try {
+                sysmlStore.loadModelFromJson(json);
+                syncModelToJointJS();
+              } catch (error) {
+                console.error('Failed to import model:', error);
+                alert('Failed to import model. Invalid JSON format.');
+              }
+            };
+            reader.readAsText(file);
+          }
+        }}
+      />
+      <button onClick={() => document.getElementById('import-json')?.click()} title="Import from JSON">
+        📂 Import
+      </button>
+    </div>
+  );
   
   return (
-    <div className="diagram-editor-container">
-      <div className="palette">
-        <h3>要素パレット</h3>
-        {paletteItems.map((item) => (
-          <div 
-            key={item.type}
-            className="palette-item"
-            draggable
-            onDragStart={(e) => handleDragStart(e, item)}
-          >
-            <span className="palette-icon">{item.icon}</span>
-            <span className="palette-label">{item.label}</span>
+    <div className="diagram-editor">
+      <DiagramToolbar />
+      
+      <div className="editor-content">
+        <div className="palette">
+          <h3>SysML v2 Elements</h3>
+          <div className="palette-items">
+            {paletteItems.map((item) => (
+              <div
+                key={item.type}
+                className="palette-item"
+                draggable
+                onDragStart={(e) => handleDragStart(e, item)}
+              >
+                <span className="item-icon">{item.icon}</span>
+                <span className="item-label">{item.label}</span>
+              </div>
+            ))}
           </div>
-        ))}
+          
+          <h3>Relationships</h3>
+          <div className="palette-items">
+            <div className="palette-item">
+              <span className="item-icon">⟹</span>
+              <span className="item-label">Specialization</span>
+            </div>
+            <div className="palette-item">
+              <span className="item-icon">→</span>
+              <span className="item-label">Feature Membership</span>
+            </div>
+            <div className="palette-item">
+              <span className="item-icon">↔</span>
+              <span className="item-label">Connection</span>
+            </div>
+            <div className="palette-item">
+              <span className="item-icon">⇒</span>
+              <span className="item-label">Transition</span>
+            </div>
+          </div>
+        </div>
+        
+        <div
+          className="paper-container"
+          ref={paperRef}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+        ></div>
       </div>
       
-      <div 
-        className="paper-container"
-        ref={paperRef}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-      ></div>
-      
       <style jsx>{`
-        .diagram-editor-container {
+        .diagram-editor {
           display: flex;
+          flex-direction: column;
           height: 100%;
-          min-height: 600px;
+          overflow: hidden;
+        }
+        
+        .diagram-toolbar {
+          padding: 8px;
+          background-color: #f0f0f0;
+          border-bottom: 1px solid #ddd;
+          display: flex;
+          gap: 8px;
+        }
+        
+        .diagram-toolbar button {
+          padding: 6px 12px;
+          border: 1px solid #ccc;
+          background-color: white;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+        
+        .diagram-toolbar button:hover {
+          background-color: #e9e9e9;
+        }
+        
+        .editor-content {
+          display: flex;
+          flex: 1;
+          overflow: hidden;
         }
         
         .palette {
-          width: 150px;
-          background-color: #f0f0f0;
-          padding: 10px;
-          border-right: 1px solid #ccc;
+          width: 200px;
+          border-right: 1px solid #ddd;
+          padding: 16px;
+          background-color: #fafafa;
+          overflow-y: auto;
         }
         
         .palette h3 {
           margin-top: 0;
-          margin-bottom: 15px;
-          text-align: center;
+          margin-bottom: 12px;
+          font-size: 14px;
+          color: #333;
+        }
+        
+        .palette-items {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          margin-bottom: 20px;
         }
         
         .palette-item {
           display: flex;
           align-items: center;
           padding: 8px;
-          margin-bottom: 8px;
-          background-color: #fff;
           border: 1px solid #ddd;
           border-radius: 4px;
+          background-color: white;
           cursor: grab;
-          transition: background-color 0.2s;
+          user-select: none;
         }
         
         .palette-item:hover {
-          background-color: #e6e6e6;
+          background-color: #f5f5f5;
         }
         
-        .palette-icon {
+        .item-icon {
           margin-right: 8px;
           font-size: 16px;
         }
         
+        .item-label {
+          font-size: 13px;
+        }
+        
         .paper-container {
-          flex-grow: 1;
-          border: 1px solid #ccc;
+          flex: 1;
           overflow: auto;
+          background-color: #F8F9FA;
         }
       `}</style>
     </div>
