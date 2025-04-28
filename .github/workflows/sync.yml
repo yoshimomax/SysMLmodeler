@@ -36,8 +36,8 @@ jobs:
       # インポートパス変換
       - name: インポートパス変換
         run: |
-          chmod +x ./scripts/migrate-imports.js
-          node ./scripts/migrate-imports.js
+          chmod +x ./scripts/migrate-imports.mjs
+          node ./scripts/migrate-imports.mjs
       
       # 型チェック
       - name: TypeScript型チェック

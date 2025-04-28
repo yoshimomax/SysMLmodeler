@@ -45,7 +45,7 @@ export { generateUUID, isValidUUID, ensureUUID } from './utils/uuid';
 
 // レガシー互換性のためのエクスポート（必要に応じて）
 // 将来削除予定
-export { default as Block } from '../model/Block';
-export { default as Port } from '../model/Port';
-export { default as Property } from '../model/Property';
-export { default as Connection } from '../model/Connection';
+export { default as Block } from '@model/Block';
+export { default as Port } from '@model/Port';
+export { default as Property } from '@model/Property';
+export { default as Connection } from '@model/Connection';

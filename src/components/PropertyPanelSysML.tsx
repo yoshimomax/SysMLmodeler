@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSysMLStore } from '../store/sysmlStore';
+import { useSysMLStore } from '@store/sysmlStore';
 import { 
   BlockDefinition, 
   PortDefinition, 
@@ -11,7 +11,7 @@ import {
   SysMLConcept,
   getConceptInfo,
   getSpecificationUrl
-} from '../services/specs/SysMLSpecifications';
+} from '@services/specs/SysMLSpecifications';
 
 /**
  * SysML v2仕様に準拠したプロパティパネルコンポーネント

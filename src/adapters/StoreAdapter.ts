@@ -11,12 +11,12 @@ import { Port } from '../../model/Port';
 import { Property } from '../../model/Property';
 
 import { useModelStore } from '../../client/src/lib/store';
-import { useSysMLModelStore, ModelElement, ModelRelationship } from '../store/sysmlStore';
+import { useSysMLModelStore, ModelElement, ModelRelationship } from '@store/sysmlStore';
 import { ModelAdapter } from './ModelAdapter';
-import { PartDefinition } from '../model/sysml2/PartDefinition';
-import { AttributeUsage } from '../model/sysml2/AttributeUsage';
-import { PortUsage } from '../model/sysml2/PortUsage';
-import { ConnectionUsage } from '../model/sysml2/ConnectionUsage';
+import { PartDefinition } from '@model/sysml2/PartDefinition';
+import { AttributeUsage } from '@model/sysml2/AttributeUsage';
+import { PortUsage } from '@model/sysml2/PortUsage';
+import { ConnectionUsage } from '@model/sysml2/ConnectionUsage';
 
 export class StoreAdapter {
   /**

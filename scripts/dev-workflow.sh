@@ -17,7 +17,7 @@ echo "1. 旧→新構造の同期を実行中..."
 
 # 2. インポートパス変換
 echo "2. インポートパス変換を実行中..."
-node ./scripts/migrate-imports.js
+node ./scripts/migrate-imports.mjs
 
 # 3. アプリケーション起動
 echo "3. アプリケーションを起動中..."

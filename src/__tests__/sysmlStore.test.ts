@@ -1,4 +1,4 @@
-import { useSysMLStore } from '../store/sysmlStore';
+import { useSysMLStore } from '@store/sysmlStore';
 import { 
   BlockDefinition, 
   PortDefinition, 

@@ -70,7 +70,7 @@ TypeScriptとReactで構築され、JointJSを使用したダイアグラム編�
 2. インポートパスの変換
    ```bash
    # 新構造内のファイルのインポートパスを変換
-   node scripts/migrate-imports.js
+   node scripts/migrate-imports.mjs
    ```
 
 3. アプリケーションの実行

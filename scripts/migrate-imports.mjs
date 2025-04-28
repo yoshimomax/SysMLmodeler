@@ -20,6 +20,17 @@ import { execSync } from 'child_process';
 
 // 変換ルール設定
 const importPathRules = [
+  // 重複パスの修正（問題1: @components/components/）
+  { from: /from ['"]@components\/components\/([^'"]+)['"]/g, to: "from '@components/$1'" },
+  { from: /from ['"]@store\/store\/([^'"]+)['"]/g, to: "from '@store/$1'" },
+  { from: /from ['"]@model\/model\/([^'"]+)['"]/g, to: "from '@model/$1'" },
+  { from: /from ['"]@server\/server\/([^'"]+)['"]/g, to: "from '@server/$1'" },
+  { from: /from ['"]@shared\/shared\/([^'"]+)['"]/g, to: "from '@shared/$1'" },
+  { from: /from ['"]@services\/services\/([^'"]+)['"]/g, to: "from '@services/$1'" },
+  { from: /from ['"]@validators\/validators\/([^'"]+)['"]/g, to: "from '@validators/$1'" },
+  { from: /from ['"]@adapters\/adapters\/([^'"]+)['"]/g, to: "from '@adapters/$1'" },
+  
+  // 基本パス変換ルール
   { from: /from ['"]\.\.?\/(client\/[^'"]+)['"]/g, to: "from '@/$1'" },
   { from: /from ['"]client\/([^'"]+)['"]/g, to: "from '@/$1'" },
   { from: /from ['"]\.\.?\/(server\/[^'"]+)['"]/g, to: "from '@server/$1'" },
@@ -28,12 +39,18 @@ const importPathRules = [
   { from: /from ['"]shared\/([^'"]+)['"]/g, to: "from '@shared/$1'" },
   { from: /from ['"]\.\.?\/(model\/[^'"]+)['"]/g, to: "from '@model/$1'" },
   { from: /from ['"]model\/([^'"]+)['"]/g, to: "from '@model/$1'" },
+  
   // コンポーネント等へのパス調整
   { from: /from ['"]\.\.?\/(components\/[^'"]+)['"]/g, to: "from '@components/$1'" },
+  { from: /from ['"]components\/([^'"]+)['"]/g, to: "from '@components/$1'" },
   { from: /from ['"]\.\.?\/(store\/[^'"]+)['"]/g, to: "from '@store/$1'" },
+  { from: /from ['"]store\/([^'"]+)['"]/g, to: "from '@store/$1'" },
   { from: /from ['"]\.\.?\/(services\/[^'"]+)['"]/g, to: "from '@services/$1'" },
+  { from: /from ['"]services\/([^'"]+)['"]/g, to: "from '@services/$1'" },
   { from: /from ['"]\.\.?\/(validators\/[^'"]+)['"]/g, to: "from '@validators/$1'" },
+  { from: /from ['"]validators\/([^'"]+)['"]/g, to: "from '@validators/$1'" },
   { from: /from ['"]\.\.?\/(adapters\/[^'"]+)['"]/g, to: "from '@adapters/$1'" },
+  { from: /from ['"]adapters\/([^'"]+)['"]/g, to: "from '@adapters/$1'" },
 ];
 
 // 対象ファイル拡張子
@@ -131,3 +148,6 @@ main().catch(err => {
   console.error('エラーが発生しました:', err);
   process.exit(1);
 });
+
+// ESM形式ではエクスポートが必要
+export { main, transformImports, getAllFiles };

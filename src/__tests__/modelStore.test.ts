@@ -1,4 +1,4 @@
-import { useModelStore } from '../store/modelStore';
+import { useModelStore } from '@store/modelStore';
 import { Block } from '../../model/Block';
 import { Port } from '../../model/Port';
 import { Property } from '../../model/Property';

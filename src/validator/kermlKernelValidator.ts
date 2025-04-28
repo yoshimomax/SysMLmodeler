@@ -15,7 +15,7 @@ import {
   Predicate,
   Interaction,
   Package
-} from '../model/kerml';
+} from '@model/kerml';
 
 /**
  * KerML Kernel レイヤー要素の制約検証機能を提供する

@@ -11,7 +11,7 @@ import {
   TypeFeaturing,
   FeatureChaining,
   FeatureInverting
-} from '../model/kerml';
+} from '@model/kerml';
 
 /**
  * KerML Core メタモデルの制約検証機能を提供する
