@@ -22,6 +22,9 @@ export class Definition extends Classifier {
   /** ステレオタイプ (SysML v2 Profile適用情報) */
   stereotype?: string;
   
+  /** 説明文 */
+  description?: string;
+  
   /** 所有する特性（Feature）のID配列 */
   ownedFeatures: string[];
   
@@ -36,6 +39,7 @@ export class Definition extends Classifier {
     id?: string;
     ownerId?: string;
     name?: string;
+    description?: string;
     isAbstract?: boolean;
     isVariation?: boolean;
     stereotype?: string;
@@ -45,9 +49,11 @@ export class Definition extends Classifier {
     super({
       id: params.id || uuidv4(),
       ownerId: params.ownerId,
-      name: params.name
+      name: params.name,
+      description: params.description
     });
     
+    this.description = params.description;
     this.isAbstract = params.isAbstract ?? false;
     this.isVariation = params.isVariation ?? false;
     this.stereotype = params.stereotype;
@@ -146,7 +152,9 @@ export class Definition extends Classifier {
       isAbstract: this.isAbstract,
       isVariation: this.isVariation,
       stereotype: this.stereotype,
-      ownedFeatures: this.ownedFeatures
+      description: this.description,
+      ownedFeatures: this.ownedFeatures,
+      usageReferences: this.usageReferences
     };
   }
   
@@ -160,10 +168,12 @@ export class Definition extends Classifier {
       id: json.id,
       ownerId: json.ownerId,
       name: json.name,
+      description: json.description,
       isAbstract: json.isAbstract,
       isVariation: json.isVariation,
       stereotype: json.stereotype,
-      ownedFeatures: json.ownedFeatures || []
+      ownedFeatures: json.ownedFeatures || [],
+      usageReferences: json.usageReferences || []
     });
   }
   
@@ -175,6 +185,7 @@ export class Definition extends Classifier {
     return {
       id: this.id,
       name: this.name,
+      description: this.description,
       stereotype: this.stereotype || 'definition',
       isAbstract: this.isAbstract,
       isVariation: this.isVariation,

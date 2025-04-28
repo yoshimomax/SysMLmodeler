@@ -44,17 +44,20 @@ export class InterfaceDefinition extends Definition {
     interfaceFeatures?: string[];
     interfaceUsages?: string[];
     ownedFeatures?: Feature[];
+    stereotype?: string;
   } = {}) {
     super({
       id: options.id || uuid(),
       name: options.name || 'unnamed_interface',
-      description: options.description,
       isAbstract: options.isAbstract,
       isVariation: options.isVariation,
       ownerId: options.ownerId,
-      ownedFeatures: options.ownedFeatures
+      ownedFeatures: options.ownedFeatures,
+      stereotype: options.stereotype,
+      usageReferences: options.interfaceUsages
     });
     
+    this.description = options.description;
     this.direction = options.direction;
     this.isConjugated = options.isConjugated || false;
     this.interfaceFeatures = options.interfaceFeatures || [];
