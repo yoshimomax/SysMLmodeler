@@ -1,4 +1,4 @@
-name: SysMLモデラー構造同期CI
+name: SysMLモデラー CI/CD
 
 # トリガー設定
 on:
@@ -7,9 +7,11 @@ on:
   pull_request:
     branches: [ main, master, develop ]
   workflow_dispatch: # 手動実行
+  schedule:
+    - cron: '0 0 * * 0' # 毎週日曜日に実行
 
 jobs:
-  sync-and-test:
+  validate-and-test:
     runs-on: ubuntu-latest
     
     steps:
@@ -27,25 +29,23 @@ jobs:
       - name: 依存関係インストール
         run: npm ci
       
-      # 構造同期実行
-      - name: 旧→新構造の同期
+      # 移行期間中: 構造同期実行
+      - name: 全ディレクトリ構造の同期
         run: |
-          chmod +x ./scripts/sync-old-to-new.sh
-          ./scripts/sync-old-to-new.sh
-      
-      # インポートパス変換
-      - name: インポートパス変換
-        run: |
-          chmod +x ./scripts/migrate-imports.mjs
-          node ./scripts/migrate-imports.mjs
+          chmod +x ./scripts/sync-all.sh
+          ./scripts/sync-all.sh
       
       # 型チェック
       - name: TypeScript型チェック
         run: npm run check
       
-      # テスト実行（Jestを使用）
+      # テスト実行（Jestを使用）- 新しいsrcディレクトリのテストを実行
       - name: テスト実行
-        run: NODE_OPTIONS=--experimental-vm-modules npx jest --config=config/jest.config.js
+        run: NODE_OPTIONS=--experimental-vm-modules npx jest --config=config/jest.config.js --testPathPattern=src/__tests__
+      
+      # ビルドテスト
+      - name: ビルドテスト
+        run: npm run build
       
       # 変更がある場合はコミット
       - name: 構造変更のコミット
@@ -54,5 +54,26 @@ jobs:
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Actions"
           git add .
-          git diff --quiet && git diff --staged --quiet || git commit -m "自動: ディレクトリ構造同期" -m "GitHub Actionsによる自動同期"
+          git diff --quiet && git diff --staged --quiet || git commit -m "自動: ディレクトリ構造同期と検証" -m "GitHub Actionsによる自動同期と検証"
           git push
+
+  lint:
+    runs-on: ubuntu-latest
+    needs: validate-and-test
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Node.jsセットアップ
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: 依存関係インストール
+        run: npm ci
+      
+      # ESLintによるコード品質チェック
+      - name: ESLintによる検証
+        run: npx eslint src/ --ext .ts,.tsx
