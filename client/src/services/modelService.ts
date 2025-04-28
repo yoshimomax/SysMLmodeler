@@ -4,6 +4,7 @@
 import { SysMLModel } from '@/types';
 import { apiRequest } from '@/lib/queryClient';
 import { useAppStore } from '@/lib/store';
+import { modelEvents } from '@shared/consistency';
 
 /**
  * 指定したモデルをデータベースに保存します
@@ -57,6 +58,16 @@ export async function saveModelToFile(
     if (data?.model?.id) {
       console.log(`Model saved with ID: ${data.model.id}`);
       console.log(`File ID: ${data.file?.id || 'unknown'}`);
+      
+      // モデル更新イベントを発行
+      modelEvents.emit('model:update', { 
+        type: 'update', 
+        model: {
+          id: data.model.id,
+          filename,
+          model
+        }
+      });
     }
     
     return true;
@@ -176,6 +187,18 @@ export async function loadModelFromFile(
     // モデルが空の場合はダミーデータを作成しない（null を返して新規作成処理へ）
     if (!model.elements || model.elements.length === 0) {
       console.log('モデルが空です。');
+    }
+    
+    // モデル読み込みイベントを発行
+    if (data.model?.id) {
+      modelEvents.emit('model:update', { 
+        type: 'load', 
+        model: {
+          id: data.model.id,
+          filename: data.filename || filename,
+          model
+        }
+      });
     }
     
     return model;

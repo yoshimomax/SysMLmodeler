@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
 import Palette from './Palette';
 import { Element, Relationship, Diagram } from '@/types/sysml';
 import { v4 as uuidv4 } from 'uuid';
+import { modelEvents } from '@shared/consistency';
 
 export default function DiagramEditor() {
   const { 
@@ -17,6 +18,38 @@ export default function DiagramEditor() {
   
   // エラーメッセージ用の状態
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // モデル更新通知用の状態
+  const [modelUpdates, setModelUpdates] = useState<Array<{time: Date, type: string}>>([]);
+  
+  // モデル更新イベントハンドラー
+  const handleModelUpdate = useCallback((payload: any) => {
+    console.log('モデル更新イベントを受信:', payload);
+    
+    // 更新履歴に追加
+    setModelUpdates(prev => [
+      { 
+        time: new Date(), 
+        type: payload.type 
+      },
+      ...prev.slice(0, 4) // 最大5件まで保持
+    ]);
+    
+    // 現在のダイアグラムに影響するモデル更新ならUIを更新
+    // 現在はシンプルな実装: 更新通知のみ表示
+    // 実際のアプリでは、ここでモデルデータの整合性を保つための
+    // さらなる処理（再読み込み、差分更新など）を行う
+  }, []);
+  
+  // イベントの購読設定
+  useEffect(() => {
+    // モデル更新イベントを購読
+    modelEvents.on('model:update', handleModelUpdate);
+    
+    // クリーンアップ関数（コンポーネントのアンマウント時に実行）
+    return () => {
+      modelEvents.off('model:update', handleModelUpdate);
+    };
+  }, [handleModelUpdate]);
   
   // シンプルな初期化（テスト用）
   useEffect(() => {
@@ -165,6 +198,24 @@ export default function DiagramEditor() {
                 : '何も選択されていません'}
           </p>
         </div>
+        
+        {/* モデル更新通知 */}
+        {modelUpdates.length > 0 && (
+          <div className="mb-4 p-2 bg-orange-50 border border-orange-200 rounded-md">
+            <h3 className="font-medium text-orange-800">モデル更新履歴:</h3>
+            <ul className="text-sm mt-1 space-y-1">
+              {modelUpdates.map((update, index) => (
+                <li key={index} className="flex items-center text-orange-700">
+                  <span className="inline-block w-2 h-2 bg-orange-500 rounded-full mr-2"></span>
+                  <span className="font-medium">{update.type}</span>
+                  <span className="ml-2 text-orange-600 text-xs">
+                    {update.time.toLocaleTimeString()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         
         {/* 要素一覧（クリックで選択） */}
         <div className="overflow-auto flex-1">
