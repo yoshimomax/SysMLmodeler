@@ -1,0 +1,18 @@
+{
+  "watch": [
+    "src/**/*",
+    "public/**/*",
+    "config/**/*",
+    "server/**/*",
+    "shared/**/*"
+  ],
+  "ext": "ts,tsx,js,jsx,json,html,css",
+  "ignore": [
+    "node_modules",
+    "dist",
+    ".git",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ],
+  "exec": "npm run dev"
+}
