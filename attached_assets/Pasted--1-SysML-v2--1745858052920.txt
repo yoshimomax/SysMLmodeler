@@ -1,0 +1,52 @@
+以下，フェーズ1「基盤強化：SysML v2メタモデル準拠の徹底」を実行するための具体的ステップを、現在のリポジトリ構成（クライアント／サーバ／モデル層など）を踏まえて示します。  
+
+**前提リポジトリ構成確認**  
+- `model/`：現状のモデル要素（Element, Relationship…）を定義  
+- `src/`：アプリ全体のエントリポイント・テキスト／グラフィカル表記のハンドラ等  
+- `__tests__/sysml2/`：SysML v2 準拠のテスト群（未整備部分が多い）   
+
+---
+
+## 1. KerML（カーネルモデリング言語）レイヤーの実装  
+1. `model/kerml/` フォルダを新設し、以下のコア要素クラスを定義  
+   - **Type**（型）  
+   - **Classifier**（分類子）  
+   - **Feature**（フィーチャ：属性・部品・ポート・アクションなど）  
+   - **Multiplicity**（多重度）  
+   - **Specialization**, **FeatureMembership**（特化・フィーチャ参画）  
+2. OMG 公開の KerML JSON スキーマ（`https://www.omg.org/spec/KerML/20250201/KerML.json`）を取り込み、各クラスのフィールド定義を合わせ込む  
+3. `model/kerml/index.ts` でライブラリとしてエクスポートし、他モジュールからインポート可能に  
+
+## 2. SysML v2（システムズモデル言語）レイヤーの実装  
+1. `model/sysml2/` フォルダを新設し、KerML を基盤として以下を定義  
+   - **Definition**／**Usage**（定義と使用）  
+   - **PartDefinition**, **PortDefinition**, **InterfaceDefinition** などのドメイン要素  
+   - **ConnectionUsage**, **BindingConnector**, **Succession**（結線・束縛・遷移）  
+2. OMG 公開の SysML v2 JSON スキーマ（`https://www.omg.org/spec/SysML/20250201/SysML.json`）に沿って、各ドメインライブラリをマッピング  
+3. `model/sysml2/index.ts` で KerML → SysML レイヤーの依存関係を定義  
+
+## 3. テキスト／グラフィカル表記パーサーとの接続  
+1. `src/parser/`（存在しない場合は新設）に、SysML v2 テキスト構文（BNF）を実装  
+2. `model/kerml` と `model/sysml2` の API を使って、パース結果をインスタンス化  
+3. JointJS（`src/graph/`）とのマッピング更新：KerML の型情報 → 図記号ライブラリへの反映  
+
+## 4. サーバ／クライアント間 API 仕様の厳密化  
+1. `server/` 側で OMG Systems Modeling API（PIM）仕様に準拠したエンドポイント定義を追加  
+   - `/kerml/types`, `/sysml2/definitions`, `/sysml2/usages` など  
+2. OpenAPI 定義ファイル（`model/kerml/OpenAPI.json` 等）を取り込む  
+3. クライアント側（`client/`）で型定義（TypeScript の `*.d.ts`）を自動生成し、モデル層に反映  
+
+## 5. テストケース整備と CI 連携  
+1. `__tests__/sysml2/` に KerML および SysML v2 の基本的なコンフォーマンステストを追加  
+   - 型の結合・特化・フィーチャ参画が期待どおり動作するか  
+   - テキスト表記のパーシング → モデル生成 → JSON シリアライズが双方向整合を保つか  
+2. GitHub Actions（`.github/workflows/ci.yml`）にテスト実行ジョブを追加  
+   - `npm run test:kerml` / `npm run test:sysml2` のステップを定義  
+
+---
+
+以上のステップを順次実行し、KerML→SysML v2→UI→API の各レイヤーで厳格に整合性を担保することが、第一フェーズ完了の要件です。この基盤ができれば、第2フェーズ以降のダイアグラム整合性担保やUI/UX強化にスムーズに移行できます。  
+
+**プロンプト改善アドバイス**  
+- 今後は「現状リポジトリ内の主要ファイルパスやクラス名」を具体的に示すと、より精度の高いステップ提案が可能です。  
+- 既存のテストコードやスキーマファイルの先頭数行を共有いただけると、依存関係整理がさらに明確になります。
