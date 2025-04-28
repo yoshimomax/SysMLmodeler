@@ -34,6 +34,12 @@ jobs:
         run: |
           chmod +x ./scripts/sync-all.sh
           ./scripts/sync-all.sh
+          
+      # インポートパスの修正
+      - name: インポートパスをエイリアスに変換
+        run: |
+          chmod +x ./scripts/fix-imports.js
+          node ./scripts/fix-imports.js
       
       # 型チェック
       - name: TypeScript型チェック
