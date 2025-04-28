@@ -328,6 +328,49 @@ const DiagramEditor: React.FC = () => {
       });
       paperInstanceRef.current = paper;
       
+      // CommandManagerの初期化（Undo/Redo対応）
+      const commandManager = new joint.dia.CommandManager({
+        graph: graph,
+        cmdBeforeAdd: function(cmdName, cell, graph, options) {
+          // コマンド追加前の処理
+          console.log('Command before add:', cmdName, cell ? cell.id : 'no cell');
+          return true; // trueを返すとコマンドが実行される
+        }
+      });
+      
+      // Undo/Redoイベントをモデルストアと同期
+      graph.on('add remove change:position change:size change:source change:target', 
+        (cell, changed, opt) => {
+          // バッチ処理中またはストアから発生した操作は無視
+          if (opt.storeAction || opt.batchOp) return;
+          
+          // 変更内容をストアに記録（時間差操作）
+          setTimeout(() => {
+            if (cell.isLink()) {
+              const sysmlId = cell.attributes.sysmlId;
+              if (sysmlId) {
+                if (changed && changed.position) {
+                  // リンクの中間点更新
+                  const vertices = cell.vertices();
+                  sysmlStore.updateRelationship(sysmlId, { 
+                    vertices: vertices
+                  });
+                }
+              }
+            } else {
+              const sysmlId = cell.attributes.sysmlId;
+              if (sysmlId) {
+                if (changed && changed.position) {
+                  const position = cell.position();
+                  sysmlStore.updateElement(sysmlId, {
+                    position: { x: position.x, y: position.y }
+                  });
+                }
+              }
+            }
+          }, 0);
+        });
+      
       // ペーパーのイベントを設定
       
       // 要素クリック時の選択処理
@@ -383,6 +426,53 @@ const DiagramEditor: React.FC = () => {
             position: { x: position.x, y: position.y }
           });
           console.log('Updated position:', position, 'for element:', sysmlId);
+        }
+      });
+      
+      // 要素選択時の処理
+      paper.on('cell:pointerclick', (cellView) => {
+        const cell = cellView.model;
+        console.log('Selected cell:', cell.id, cell.attributes.sysmlId);
+        
+        if (cell.isLink()) {
+          const sysmlId = cell.attributes.sysmlId;
+          if (sysmlId) {
+            sysmlStore.setSelectedRelationship(sysmlId);
+            console.log('Selected relationship:', sysmlId);
+          }
+        } else {
+          const sysmlId = cell.attributes.sysmlId;
+          if (sysmlId) {
+            sysmlStore.setSelectedElement(sysmlId);
+            console.log('Selected element:', sysmlId);
+          }
+        }
+      });
+      
+      // 新規要素追加時の処理
+      graph.on('add', (cell) => {
+        // すでにSysML IDが割り当てられている場合は無視（既存要素のロード等）
+        if (cell.attributes.sysmlId) return;
+        
+        // 新規要素の場合、モデルストアに追加
+        if (!cell.isLink()) {
+          const element = cell;
+          const position = element.position();
+          const elementType = element.attributes.type.split('.')[1];
+          
+          // モデル要素作成
+          const newElement = {
+            id: uuidv4(),
+            name: `New ${elementType}`,
+            type: elementType,
+            description: `A new ${elementType}`,
+            position: { x: position.x, y: position.y }
+          };
+          
+          // モデルストアに追加し、JointJS要素にIDを設定
+          const sysmlId = sysmlStore.addElement(newElement);
+          element.attributes.sysmlId = sysmlId;
+          console.log('Added new element to store:', sysmlId);
         }
       });
       
@@ -507,10 +597,31 @@ const DiagramEditor: React.FC = () => {
    */
   useEffect(() => {
     // サブスクリプション設定
-    // TODO: Zustand自体のサブスクライブを実装
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ctrl+Z: Undo
+      if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        sysmlStore.undo();
+        console.log('Undo operation triggered');
+        syncModelToJointJS();
+      }
+      
+      // Ctrl+Shift+Z または Ctrl+Y: Redo
+      if ((event.ctrlKey || event.metaKey) && 
+          ((event.shiftKey && event.key === 'z') || event.key === 'y')) {
+        event.preventDefault();
+        sysmlStore.redo();
+        console.log('Redo operation triggered');
+        syncModelToJointJS();
+      }
+    };
+    
+    // キーボードイベントリスナーを登録
+    document.addEventListener('keydown', handleKeyDown);
     
     return () => {
       // クリーンアップ
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [sysmlStore]);
   
