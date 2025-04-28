@@ -94,7 +94,7 @@ export default function ModelBrowser() {
           type: 'folder',
           icon: getTypeIcon(type),
           expanded: false,
-          children: elements.map(element => ({
+          children: elements.map((element: Element) => ({
             id: element.id,
             name: element.name,
             type: 'file',
@@ -259,7 +259,7 @@ export default function ModelBrowser() {
     const typeFolderId = `type-${element.type}`;
     
     // 対応するタイプフォルダを検索
-    const typeFolder = rootItem.children.find(child => child.id === typeFolderId);
+    const typeFolder = rootItem.children.find((child: TreeItemData) => child.id === typeFolderId);
     
     if (typeFolder) {
       // 既存のタイプフォルダに追加
@@ -308,7 +308,7 @@ export default function ModelBrowser() {
     if (!rootItem || !rootItem.children) return newItems;
     
     // 関係フォルダを検索
-    let relationshipFolder = rootItem.children.find(child => child.id === 'relationships');
+    let relationshipFolder = rootItem.children.find((child: TreeItemData) => child.id === 'relationships');
     
     if (relationshipFolder) {
       // 既存の関係フォルダに追加
