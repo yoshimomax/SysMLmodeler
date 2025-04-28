@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as joint from 'jointjs';
 import { useSysMLModelStore } from '../store/sysmlStore';
 
@@ -323,8 +323,47 @@ const DiagramEditor: React.FC = () => {
         interactive: {
           linkMove: true,
           vertexMove: true,
-          elementMove: true
-        }
+          elementMove: true,
+          // リンク（接続）作成のためのドラッグをサポート
+          validateConnection: function(cellViewS, magnetS, cellViewT, magnetT, end, linkView) {
+            // 自己接続は許可しない
+            if (cellViewS === cellViewT) return false;
+            
+            // 接続元と接続先は要素のみを許可（リンク同士は接続不可）
+            if (cellViewS.model.isLink() || cellViewT.model.isLink()) return false;
+            
+            // 既存の接続チェック（重複接続を防止）
+            const links = graph.getLinks();
+            for (let i = 0; i < links.length; i++) {
+              const link = links[i];
+              if (
+                link.get('source').id === cellViewS.model.id &&
+                link.get('target').id === cellViewT.model.id
+              ) {
+                return false; // 同じ接続が既に存在する
+              }
+            }
+            
+            return true; // それ以外の接続を許可
+          },
+          // マグネットのハイライト
+          magnetThreshold: 'onleave',
+          markAvailable: true
+        },
+        // リンク作成用の設定を追加
+        defaultLink: function() {
+          // デフォルトは標準接続
+          return new joint.shapes.sysml.Connection({
+            sysmlType: 'ConnectionUsage',
+            attrs: {
+              '.connection': { stroke: '#333333', 'stroke-width': 2 },
+              '.marker-target': { fill: '#333333', stroke: '#333333', d: 'M 10 0 L 0 5 L 10 10 z' }
+            },
+            labels: [{ position: 0.5, attrs: { text: { text: 'connects' } } }]
+          });
+        },
+        // 要素とリンクの表示レイヤーのソート
+        sorting: joint.dia.Paper.sorting.APPROX
       });
       paperInstanceRef.current = paper;
       
@@ -565,6 +604,50 @@ const DiagramEditor: React.FC = () => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'copy';
   };
+  
+  // リレーションシップタイプの選択状態
+  const [selectedRelationType, setSelectedRelationType] = useState<string>('ConnectionUsage');
+  
+  // リレーションシップタイプのオプション
+  const relationshipTypes = [
+    { type: 'ConnectionUsage', label: '接続', color: '#333333' },
+    { type: 'FeatureMembership', label: '特徴', color: '#28A745' },
+    { type: 'Specialization', label: '特殊化', color: '#007BFF' },
+    { type: 'Transition', label: '遷移', color: '#DC3545' }
+  ];
+  
+  // リレーションシップタイプが変更されたときにJointJSに通知
+  useEffect(() => {
+    if (paperInstanceRef.current && graphRef.current) {
+      const paper = paperInstanceRef.current;
+      
+      // デフォルトリンクタイプを更新
+      paper.options.defaultLink = () => {
+        // 選択されたリレーションシップタイプに基づいてリンクを作成
+        switch (selectedRelationType) {
+          case 'Specialization':
+            return new joint.shapes.sysml.Specialization({
+              sysmlType: 'Specialization'
+            });
+          case 'FeatureMembership':
+            return new joint.shapes.sysml.FeatureMembership({
+              sysmlType: 'FeatureMembership'
+            });
+          case 'Transition':
+            return new joint.shapes.sysml.Transition({
+              sysmlType: 'Transition'
+            });
+          case 'ConnectionUsage':
+          default:
+            return new joint.shapes.sysml.Connection({
+              sysmlType: 'ConnectionUsage'
+            });
+        }
+      };
+      
+      console.log('リレーションシップタイプを変更:', selectedRelationType);
+    }
+  }, [selectedRelationType]);
   
   /**
    * 要素タイプに応じたJointJS要素とSysML要素の作成
@@ -918,7 +1001,7 @@ const DiagramEditor: React.FC = () => {
       
       <div className="editor-content">
         <div className="palette">
-          <h3>SysML v2 Elements</h3>
+          <h3>SysML v2 要素</h3>
           <div className="palette-items">
             {paletteItems.map((item) => (
               <div
@@ -933,24 +1016,35 @@ const DiagramEditor: React.FC = () => {
             ))}
           </div>
           
-          <h3>Relationships</h3>
-          <div className="palette-items">
-            <div className="palette-item">
-              <span className="item-icon">⟹</span>
-              <span className="item-label">Specialization</span>
-            </div>
-            <div className="palette-item">
-              <span className="item-icon">→</span>
-              <span className="item-label">Feature Membership</span>
-            </div>
-            <div className="palette-item">
-              <span className="item-icon">↔</span>
-              <span className="item-label">Connection</span>
-            </div>
-            <div className="palette-item">
-              <span className="item-icon">⇒</span>
-              <span className="item-label">Transition</span>
-            </div>
+          <h3>リレーションシップ</h3>
+          <p className="help-text">
+            要素間を接続するには、要素からドラッグして別の要素にドロップします。
+            下のリレーションシップタイプを選択してから接続してください。
+          </p>
+          
+          <div className="relationship-selector">
+            {relationshipTypes.map((relType) => (
+              <div
+                key={relType.type}
+                className={`relationship-option ${selectedRelationType === relType.type ? 'selected' : ''}`}
+                onClick={() => setSelectedRelationType(relType.type)}
+                style={{
+                  borderLeft: `4px solid ${relType.color}`
+                }}
+              >
+                <span className="relationship-label">{relType.label}</span>
+              </div>
+            ))}
+          </div>
+          
+          <div className="relationship-help">
+            <p>
+              <strong>接続方法：</strong>
+              <br />
+              1. リレーションシップタイプを選択
+              <br />
+              2. 要素の端からドラッグして別の要素にドロップ
+            </p>
           </div>
         </div>
         
@@ -1041,6 +1135,58 @@ const DiagramEditor: React.FC = () => {
           
           .item-label {
             font-size: 13px;
+          }
+          
+          .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+            line-height: 1.4;
+          }
+          
+          .relationship-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-bottom: 15px;
+          }
+          
+          .relationship-option {
+            padding: 6px 10px;
+            border-radius: 4px;
+            background-color: white;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            transition: all 0.2s ease;
+          }
+          
+          .relationship-option:hover {
+            background-color: #f5f5f5;
+          }
+          
+          .relationship-option.selected {
+            background-color: #e3f2fd;
+            border-color: #90caf9;
+            font-weight: bold;
+          }
+          
+          .relationship-label {
+            font-size: 13px;
+          }
+          
+          .relationship-help {
+            background-color: #fffde7;
+            border: 1px solid #fff59d;
+            border-radius: 4px;
+            padding: 8px;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #333;
+          }
+          
+          .relationship-help p {
+            margin: 0;
+            line-height: 1.4;
           }
           
           .paper-container {
