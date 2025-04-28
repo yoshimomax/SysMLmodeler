@@ -328,14 +328,22 @@ const DiagramEditor: React.FC = () => {
       });
       paperInstanceRef.current = paper;
       
-      // CommandManagerの初期化（Undo/Redo対応）
-      const commandManager = new joint.dia.CommandManager({
-        graph: graph,
-        cmdBeforeAdd: function(cmdName, cell, graph, options) {
-          // コマンド追加前の処理
-          console.log('Command before add:', cmdName, cell ? cell.id : 'no cell');
-          return true; // trueを返すとコマンドが実行される
-        }
+      // Undo/Redo 用のイベント監視
+      // JointJS v3以降はCommandManagerを直接使わず、グラフイベントを使用する
+      // 変更を検知してストアに通知する
+      let lastOperation = '';
+      let batchOperationInProgress = false;
+      
+      // バッチ操作の開始/終了を検知
+      graph.on('batch:start', () => {
+        batchOperationInProgress = true;
+        console.log('Batch operation started');
+      });
+      
+      graph.on('batch:stop', () => {
+        batchOperationInProgress = false;
+        console.log('Batch operation completed:', lastOperation);
+        lastOperation = '';
       });
       
       // Undo/Redoイベントをモデルストアと同期
