@@ -1,0 +1,66 @@
+次のステップとしては、以下の 2 点を並行して進めてください。
+
+⸻
+
+A. バリデーション機能の強化
+	1.	仕様由来の制約リスト化
+OMG SysML v2 言語仕様（Part 1: Language §7.6–§7.27）および KerML メタモデル仕様（§7.3–§7.4）から、漏れている主要な制約を洗い出します。たとえば：
+	•	循環特化禁止：Specialization のチェーンで同じ要素を繰り返し参照しない
+	•	multiplicity の範囲チェック：lowerBound ≤ upperBound、upperBound ≥ 1（必要な箇所）
+	•	名前必須：Definition 要素は必ず name を持つ
+	•	Usage の対応付け：PartUsage は必ず対応する PartDefinition を参照
+	•	ネスト制約：PortDefinition 内では AttributeDefinition／Feature 以外の要素を持たない など
+	2.	validate() メソッドの拡張
+	•	各 Definition／Usage クラスの validate() に、上記の制約を個別にチェックするロジックを追加。
+	•	エラーは ValidationError（カスタム例外）で投げ、エラー発生箇所・メッセージがわかるように。
+	3.	共通バリデータの分離
+	•	src/model/sysml2/validator.ts を作り、共通ロジック（循環検出、multiplicity チェックなど）を関数化
+	•	各クラスの validate() では、その関数を組み合わせて呼び出すだけにして重複を排除
+	4.	リアルタイム／起動時チェック
+	•	クラスのコンストラクタ内で即時に validate() が走るオプション（開発モードのみ）を作る
+	•	ModelStore に要素登録時／更新時に一斉チェックを走らせる仕組みを追加
+
+⸻
+
+B. Jest テストケースの追加
+	1.	テストディレクトリ準備
+プロジェクトルートに
+
+__tests__/sysml2/
+
+を作成し、package.json の Jest 設定で __tests__/**/*.ts を拾うように設定確認。
+
+	2.	シリアライズ／デシリアライズ往復テスト
+各 Definition クラスごとに、以下のテンプレートでテストを追加：
+
+import { PartDefinition } from '../../src/model/sysml2/PartDefinition';
+
+describe('PartDefinition JSON round-trip', () => {
+  it('toJSON → fromJSON で同一オブジェクトになる', () => {
+    const original = new PartDefinition({ id: 'p1', name: 'MyPart', ... });
+    const json = original.toJSON();
+    const restored = PartDefinition.fromJSON(json);
+    expect(restored).toEqual(original);
+  });
+});
+
+	•	上記をすべての Definition（InterfaceDefinition, ConnectionDefinition…）に展開
+	•	双方向変換時のバージョン差分チェックも含め、expect(json).toMatchSnapshot() で JSON が仕様どおりかスナップショット
+
+	3.	制約違反テスト
+	•	正常系だけでなく、あえて不正なモデルを生成し、validate() が例外を投げることを確認：
+
+it('循環特化を検出する', () => {
+  const a = new PartDefinition({ id: 'A', name: 'A' });
+  const b = new PartDefinition({ id: 'B', name: 'B', specializations: ['A'] });
+  a.specializations = ['B'];
+  expect(() => a.validate()).toThrow(/循環特化/);
+});
+
+
+	4.	CI への組み込み
+	•	.github/workflows/ci.yml（または Replit の CI 設定）に npm test を追加し、プルリク／マージ時に必ずテストが通るように。
+
+⸻
+
+これらを実装すれば、KerML 連携で足りなかった 仕様ベースの制約チェック と、JSON 変換の 往復正当性 を自動で担保するテストが揃い、言語要素の実装品質が飛躍的に向上します。まずは A→B の順で進めてください。
