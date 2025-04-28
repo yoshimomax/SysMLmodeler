@@ -201,6 +201,67 @@ export const useSysMLModelStore = create<SysMLModelState>((set, get) => ({
     };
     
     set(state => {
+      // バリデーション（追加予定）
+      let validationErrors: any[] = [];
+      
+      // リレーションシップの種類に応じた検証
+      if (relationship.type === 'ConnectionUsage') {
+        try {
+          // ConnectionValidator が読み込めるなら検証を実行
+          const { ConnectionValidator } = require('../validators/ConnectionValidator');
+          const sourceElement = state.elements[relationship.sourceId];
+          const targetElement = state.elements[relationship.targetId];
+          
+          // 型互換性チェック
+          const typeErrors = ConnectionValidator.validateConnectionTypeCompatibility(
+            sourceElement, 
+            targetElement, 
+            relationship
+          );
+          
+          // 多重度チェック
+          const multiplicityErrors = ConnectionValidator.validateConnectionMultiplicity(
+            sourceElement,
+            targetElement,
+            relationship,
+            Object.values(state.relationships)
+          );
+          
+          validationErrors = [...typeErrors, ...multiplicityErrors];
+          
+          // エラーがあれば警告ログに出力
+          if (validationErrors.length > 0) {
+            console.warn('Connection validation errors:', validationErrors);
+          }
+        } catch (error) {
+          console.error('Failed to validate connection:', error);
+        }
+      } else if (relationship.type === 'FeatureMembership') {
+        try {
+          // FeatureValidator が読み込めるなら検証を実行
+          const { FeatureValidator } = require('../validators/FeatureValidator');
+          const ownerElement = state.elements[relationship.sourceId];
+          const featureElement = state.elements[relationship.targetId];
+          
+          // 多重度チェック
+          const errors = FeatureValidator.validateFeatureMembershipMultiplicity(
+            ownerElement,
+            featureElement,
+            relationship,
+            Object.values(state.relationships)
+          );
+          
+          validationErrors = errors;
+          
+          // エラーがあれば警告ログに出力
+          if (validationErrors.length > 0) {
+            console.warn('Feature membership validation errors:', validationErrors);
+          }
+        } catch (error) {
+          console.error('Failed to validate feature membership:', error);
+        }
+      }
+      
       const newState = {
         ...state,
         relationships: {
@@ -212,7 +273,10 @@ export const useSysMLModelStore = create<SysMLModelState>((set, get) => ({
       // 履歴への追加
       const historyItem: HistoryItem = {
         type: 'addRelationship',
-        data: { relationship: relationshipWithId },
+        data: { 
+          relationship: relationshipWithId,
+          validationErrors // 検証結果も履歴に保存
+        },
         reverse: () => get().removeRelationship(relationshipWithId.id),
         forward: () => get().addRelationship(relationshipWithId)
       };
