@@ -9,6 +9,7 @@
 import { v4 as uuid } from 'uuid';
 import { Feature } from '../kerml/Feature';
 import { FeatureObject } from '../kerml/Feature';
+import { SysML2_ConnectionUsage } from './interfaces';
 
 export class ConnectionUsage extends Feature {
   /** 接続元エンドID */
@@ -26,6 +27,12 @@ export class ConnectionUsage extends Feature {
   /** 接続パス上の中間点（UI表示用） */
   vertices?: { x: number; y: number }[] = [];
   
+  /** 接続元エンドの役割名（オプション） */
+  sourceEndRole?: string;
+  
+  /** 接続先エンドの役割名（オプション） */
+  targetEndRole?: string;
+  
   /**
    * ConnectionUsage コンストラクタ
    * @param options 初期化オプション
@@ -40,6 +47,8 @@ export class ConnectionUsage extends Feature {
     connectionDefinitionId?: string;
     itemType?: string;
     vertices?: { x: number; y: number }[];
+    sourceEndRole?: string;
+    targetEndRole?: string;
     isAbstract?: boolean;
   }) {
     super({
@@ -54,6 +63,8 @@ export class ConnectionUsage extends Feature {
     this.targetEndId = options.targetEndId;
     this.connectionDefinitionId = options.connectionDefinitionId;
     this.itemType = options.itemType;
+    this.sourceEndRole = options.sourceEndRole;
+    this.targetEndRole = options.targetEndRole;
     
     if (options.vertices) {
       this.vertices = [...options.vertices];
@@ -77,6 +88,40 @@ export class ConnectionUsage extends Feature {
   }
   
   /**
+   * 接続定義を設定する
+   * @param connectionDefinitionId 接続定義のID
+   */
+  setConnectionDefinition(connectionDefinitionId: string): void {
+    this.connectionDefinitionId = connectionDefinitionId;
+  }
+  
+  /**
+   * エンドの役割名を設定する
+   * @param sourceRole 接続元の役割名
+   * @param targetRole 接続先の役割名
+   */
+  setEndRoles(sourceRole: string, targetRole: string): void {
+    this.sourceEndRole = sourceRole;
+    this.targetEndRole = targetRole;
+  }
+  
+  /**
+   * エンドの特性IDを入れ替える（接続の向きを反転する）
+   */
+  reverseDirection(): void {
+    const tempId = this.sourceEndId;
+    this.sourceEndId = this.targetEndId;
+    this.targetEndId = tempId;
+    
+    // 役割名も入れ替え
+    if (this.sourceEndRole || this.targetEndRole) {
+      const tempRole = this.sourceEndRole;
+      this.sourceEndRole = this.targetEndRole;
+      this.targetEndRole = tempRole;
+    }
+  }
+  
+  /**
    * 接続の情報をオブジェクトとして返す
    * @returns FeatureObject 構造
    */
@@ -91,7 +136,9 @@ export class ConnectionUsage extends Feature {
         targetEndId: this.targetEndId,
         connectionDefinitionId: this.connectionDefinitionId,
         itemType: this.itemType,
-        vertices: this.vertices ? [...this.vertices] : undefined
+        vertices: this.vertices ? [...this.vertices] : undefined,
+        sourceEndRole: this.sourceEndRole,
+        targetEndRole: this.targetEndRole
       }
     };
   }
@@ -100,17 +147,22 @@ export class ConnectionUsage extends Feature {
    * JSONシリアライズ用のメソッド
    * @returns JSON形式のオブジェクト
    */
-  override toJSON(): any {
-    const obj = this.toObject();
-    // obj.properties内のすべてのプロパティをトップレベルに移動
-    const result = {
-      ...obj,
-      ...obj.properties,
-      __type: 'ConnectionUsage'
+  override toJSON(): SysML2_ConnectionUsage {
+    const baseJson = super.toJSON();
+    
+    return {
+      ...baseJson,
+      __type: 'ConnectionUsage',
+      connectionDefinition: this.connectionDefinitionId,
+      endFeatures: [this.sourceEndId, this.targetEndId],
+      sourceType: this.sourceEndRole,
+      targetType: this.targetEndRole,
+      itemType: this.itemType,
+      // インターフェース型で定義されていないプロパティはカスタムプロパティとして追加
+      sourceEndId: this.sourceEndId,
+      targetEndId: this.targetEndId,
+      vertices: this.vertices
     };
-    // propertiesプロパティを除外した新しいオブジェクトを作成
-    const { properties, ...resultWithoutProperties } = result;
-    return resultWithoutProperties;
   }
   
   /**
@@ -118,12 +170,23 @@ export class ConnectionUsage extends Feature {
    * @param json JSON形式のデータ
    * @returns 新しいConnectionUsageインスタンス
    */
-  static fromJSON(json: any): ConnectionUsage {
+  static fromJSON(json: SysML2_ConnectionUsage): ConnectionUsage {
     if (!json || typeof json !== 'object') {
       throw new Error('有効なJSONオブジェクトではありません');
     }
     
-    if (!json.sourceEndId || !json.targetEndId) {
+    // endFeaturesから接続元・先を取得、または直接指定されたプロパティを使用
+    let sourceEndId = json.sourceEndId;
+    let targetEndId = json.targetEndId;
+    
+    // endFeaturesが配列としてあり、sourceEndIdが指定されていない場合に使用
+    if (Array.isArray(json.endFeatures) && json.endFeatures.length >= 2 && !sourceEndId) {
+      sourceEndId = json.endFeatures[0];
+      targetEndId = json.endFeatures[1];
+    }
+    
+    // ソースまたはターゲットIDが見つからない場合はエラー
+    if (!sourceEndId || !targetEndId) {
       throw new Error('接続元・接続先のエンドIDが指定されていません');
     }
     
@@ -133,14 +196,45 @@ export class ConnectionUsage extends Feature {
       name: json.name,
       ownerId: json.ownerId,
       description: json.description,
-      sourceEndId: json.sourceEndId,
-      targetEndId: json.targetEndId,
-      connectionDefinitionId: json.connectionDefinitionId,
+      sourceEndId: sourceEndId,
+      targetEndId: targetEndId,
+      connectionDefinitionId: json.connectionDefinition,
       itemType: json.itemType,
       vertices: json.vertices,
+      sourceEndRole: json.sourceType,
+      targetEndRole: json.targetType,
       isAbstract: json.isAbstract
     });
     
     return connectionUsage;
+  }
+  
+  /**
+   * このConnectionUsageのコピーを作成する
+   * @param overrides 上書きするプロパティ
+   * @returns 新しいConnectionUsageインスタンス
+   */
+  copy(overrides: Partial<{
+    id: string;
+    name: string;
+    sourceEndId: string;
+    targetEndId: string;
+    itemType: string;
+    vertices: { x: number; y: number }[];
+  }> = {}): ConnectionUsage {
+    return new ConnectionUsage({
+      id: overrides.id,
+      name: overrides.name || `${this.name}_copy`,
+      ownerId: this.ownerId,
+      description: this.description,
+      sourceEndId: overrides.sourceEndId || this.sourceEndId,
+      targetEndId: overrides.targetEndId || this.targetEndId,
+      connectionDefinitionId: this.connectionDefinitionId,
+      itemType: overrides.itemType || this.itemType,
+      vertices: overrides.vertices || (this.vertices ? [...this.vertices] : undefined),
+      sourceEndRole: this.sourceEndRole,
+      targetEndRole: this.targetEndRole,
+      isAbstract: this.isAbstract
+    });
   }
 }

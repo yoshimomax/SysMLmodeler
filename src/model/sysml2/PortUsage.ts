@@ -9,10 +9,26 @@
 import { v4 as uuid } from 'uuid';
 import { Feature } from '../kerml/Feature';
 import { FeatureObject } from '../kerml/Feature';
+import { SysML2_PortUsage } from './interfaces';
 
 export class PortUsage extends Feature {
   /** UI上の位置情報（オプション） */
   position?: { x: number; y: number };
+  
+  /** 参照するポート定義のID */
+  definitionId?: string;
+  
+  /** ポートの方向 (in, out, inout) */
+  direction?: 'in' | 'out' | 'inout';
+  
+  /** ポートが共役かどうか（互換ポートとの結合用） */
+  isConjugated: boolean = false;
+  
+  /** フロー仕様のID配列 */
+  flowSpecifications?: string[];
+  
+  /** インターフェースのID配列 */
+  interfaces?: string[];
   
   /**
    * PortUsage コンストラクタ
@@ -24,9 +40,13 @@ export class PortUsage extends Feature {
     ownerId?: string;
     description?: string;
     typeId?: string;
+    definitionId?: string;
     direction?: 'in' | 'out' | 'inout';
     isAbstract?: boolean;
+    isConjugated?: boolean;
     position?: { x: number; y: number };
+    flowSpecifications?: string[];
+    interfaces?: string[];
   } = {}) {
     super({
       id: options.id,
@@ -39,6 +59,11 @@ export class PortUsage extends Feature {
     });
     
     this.position = options.position;
+    this.definitionId = options.definitionId;
+    this.direction = options.direction;
+    this.isConjugated = options.isConjugated || false;
+    this.flowSpecifications = options.flowSpecifications;
+    this.interfaces = options.interfaces;
   }
   
   /**
@@ -48,6 +73,40 @@ export class PortUsage extends Feature {
    */
   setPosition(x: number, y: number): void {
     this.position = { x, y };
+  }
+  
+  /**
+   * ポート定義を設定する
+   * @param definitionId ポート定義のID
+   */
+  setDefinition(definitionId: string): void {
+    this.definitionId = definitionId;
+  }
+  
+  /**
+   * フロー仕様を追加する
+   * @param flowSpecId 追加するフロー仕様のID
+   */
+  addFlowSpecification(flowSpecId: string): void {
+    if (!this.flowSpecifications) {
+      this.flowSpecifications = [];
+    }
+    if (!this.flowSpecifications.includes(flowSpecId)) {
+      this.flowSpecifications.push(flowSpecId);
+    }
+  }
+  
+  /**
+   * インターフェースを追加する
+   * @param interfaceId 追加するインターフェースのID
+   */
+  addInterface(interfaceId: string): void {
+    if (!this.interfaces) {
+      this.interfaces = [];
+    }
+    if (!this.interfaces.includes(interfaceId)) {
+      this.interfaces.push(interfaceId);
+    }
   }
   
   /**
@@ -61,7 +120,12 @@ export class PortUsage extends Feature {
       type: 'PortUsage',
       properties: {
         ...baseObject.properties,
-        position: this.position
+        position: this.position,
+        definitionId: this.definitionId,
+        direction: this.direction,
+        isConjugated: this.isConjugated,
+        flowSpecifications: this.flowSpecifications,
+        interfaces: this.interfaces
       }
     };
   }
@@ -70,17 +134,17 @@ export class PortUsage extends Feature {
    * JSONシリアライズ用のメソッド
    * @returns JSON形式のオブジェクト
    */
-  override toJSON(): any {
-    const obj = this.toObject();
-    // obj.properties内のすべてのプロパティをトップレベルに移動
-    const result = {
-      ...obj,
-      ...obj.properties,
-      __type: 'PortUsage'
+  override toJSON(): SysML2_PortUsage {
+    return {
+      ...super.toJSON(),
+      __type: 'PortUsage',
+      portDefinition: this.definitionId,
+      direction: this.direction,
+      isConjugated: this.isConjugated,
+      flowSpecifications: this.flowSpecifications,
+      interfaces: this.interfaces,
+      position: this.position
     };
-    // propertiesプロパティを除外した新しいオブジェクトを作成
-    const { properties, ...resultWithoutProperties } = result;
-    return resultWithoutProperties;
   }
   
   /**
@@ -88,7 +152,7 @@ export class PortUsage extends Feature {
    * @param json JSON形式のデータ
    * @returns 新しいPortUsageインスタンス
    */
-  static fromJSON(json: any): PortUsage {
+  static fromJSON(json: SysML2_PortUsage): PortUsage {
     if (!json || typeof json !== 'object') {
       throw new Error('有効なJSONオブジェクトではありません');
     }
@@ -100,11 +164,39 @@ export class PortUsage extends Feature {
       ownerId: json.ownerId,
       description: json.description,
       typeId: json.type,
+      definitionId: json.portDefinition, // portDefinitionフィールドを使用
       direction: json.direction,
       isAbstract: json.isAbstract,
-      position: json.position
+      isConjugated: json.isConjugated,
+      position: json.position,
+      flowSpecifications: json.flowSpecifications,
+      interfaces: json.interfaces
     });
     
     return portUsage;
+  }
+  
+  /**
+   * このポート使用の共役をコピーとして作成する
+   * @returns 共役ポート使用インスタンス
+   */
+  createConjugate(): PortUsage {
+    // 方向を反転
+    let conjugateDirection: 'in' | 'out' | 'inout' | undefined = this.direction;
+    if (this.direction === 'in') {
+      conjugateDirection = 'out';
+    } else if (this.direction === 'out') {
+      conjugateDirection = 'in';
+    }
+    
+    return new PortUsage({
+      name: `${this.name}_conjugate`,
+      description: `${this.name}の共役ポート`,
+      definitionId: this.definitionId,
+      direction: conjugateDirection,
+      isConjugated: true,
+      flowSpecifications: this.flowSpecifications ? [...this.flowSpecifications] : undefined,
+      interfaces: this.interfaces ? [...this.interfaces] : undefined
+    });
   }
 }

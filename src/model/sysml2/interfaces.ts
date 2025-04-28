@@ -353,7 +353,7 @@ export interface SysML2_ConcernUsage extends SysML2_Usage {
 /**
  * SysML2 ActorDefinition インターフェース
  */
-export interface SysML2_ActorDefinition extends SysML2_PartDefinition {
+export interface SysML2_ActorDefinition extends Omit<SysML2_PartDefinition, '__type'> {
   __type: 'ActorDefinition';
   actorUsages?: string[];
   participatedUseCases?: string[];
@@ -362,7 +362,7 @@ export interface SysML2_ActorDefinition extends SysML2_PartDefinition {
 /**
  * SysML2 ActorUsage インターフェース
  */
-export interface SysML2_ActorUsage extends SysML2_PartUsage {
+export interface SysML2_ActorUsage extends Omit<SysML2_PartUsage, '__type'> {
   __type: 'ActorUsage';
   actorDefinition?: string;
   participatedUseCases?: string[];
@@ -371,7 +371,7 @@ export interface SysML2_ActorUsage extends SysML2_PartUsage {
 /**
  * SysML2 StakeholderDefinition インターフェース
  */
-export interface SysML2_StakeholderDefinition extends SysML2_PartDefinition {
+export interface SysML2_StakeholderDefinition extends Omit<SysML2_PartDefinition, '__type'> {
   __type: 'StakeholderDefinition';
   stakeholderUsages?: string[];
   concerns?: string[];
@@ -381,7 +381,7 @@ export interface SysML2_StakeholderDefinition extends SysML2_PartDefinition {
 /**
  * SysML2 StakeholderUsage インターフェース
  */
-export interface SysML2_StakeholderUsage extends SysML2_PartUsage {
+export interface SysML2_StakeholderUsage extends Omit<SysML2_PartUsage, '__type'> {
   __type: 'StakeholderUsage';
   stakeholderDefinition?: string;
   concerns?: string[];
