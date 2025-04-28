@@ -1,0 +1,58 @@
+name: SysMLモデラー構造同期CI
+
+# トリガー設定
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  workflow_dispatch: # 手動実行
+
+jobs:
+  sync-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # リポジトリのチェックアウト
+      - uses: actions/checkout@v3
+      
+      # Node.jsセットアップ
+      - name: Node.jsセットアップ
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      # 依存関係インストール
+      - name: 依存関係インストール
+        run: npm ci
+      
+      # 構造同期実行
+      - name: 旧→新構造の同期
+        run: |
+          chmod +x ./scripts/sync-old-to-new.sh
+          ./scripts/sync-old-to-new.sh
+      
+      # インポートパス変換
+      - name: インポートパス変換
+        run: |
+          chmod +x ./scripts/migrate-imports.js
+          node ./scripts/migrate-imports.js
+      
+      # 型チェック
+      - name: TypeScript型チェック
+        run: npm run check
+      
+      # テスト実行（Jestを使用）
+      - name: テスト実行
+        run: NODE_OPTIONS=--experimental-vm-modules npx jest --config=config/jest.config.js
+      
+      # 変更がある場合はコミット
+      - name: 構造変更のコミット
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          git config --local user.email "actions@github.com"
+          git config --local user.name "GitHub Actions"
+          git add .
+          git diff --quiet && git diff --staged --quiet || git commit -m "自動: ディレクトリ構造同期" -m "GitHub Actionsによる自動同期"
+          git push

@@ -1,81 +1,118 @@
 #!/bin/bash
 
-# SysMLmodeler リポジトリ構造同期スクリプト
-# 旧構造（client/, server/, shared/, model/）から
-# 新構造（src/client/, src/server/, src/shared/, src/model/）へファイルを同期
+# SysMLモデラー 構造同期スクリプト
+# 旧構造のファイルを新構造にコピーし、整理します
 
 set -e  # エラー発生時に停止
 
-echo "=== SysMLmodeler ディレクトリ構造同期 ==="
-echo "旧構造 → 新構造へのファイル同期を開始します"
+echo "=== SysMLモデラー 構造同期ツール ==="
 
 # ルートディレクトリに移動
 cd "$(dirname "$0")/.."
 ROOT_DIR=$(pwd)
 
-# 必要なディレクトリが存在することを確認
+# 新構造のベースディレクトリを作成
 mkdir -p src/client
 mkdir -p src/server
 mkdir -p src/shared
 mkdir -p src/model
+mkdir -p src/store
+mkdir -p src/components
+mkdir -p src/validators
+mkdir -p src/services
+mkdir -p src/adapters
+mkdir -p src/__tests__
+mkdir -p public/assets
 
-# client/ → src/client/ への同期
-echo "client/ → src/client/ の同期中..."
-if [ -d "client/src" ]; then
-  rsync -av --delete --exclude="node_modules" --exclude=".git" client/src/ src/client/
-  # index.htmlの同期
-  if [ -f "client/index.html" ]; then
-    cp client/index.html public/index.html
+# 同期パターンを配列で定義
+sync_patterns=(
+  # クライアント関連ファイル
+  "client/src:src/client"
+  "client/components:src/components"
+  
+  # サーバー関連ファイル
+  "server:src/server"
+  
+  # 共有ファイル
+  "shared:src/shared"
+  
+  # モデル関連ファイル
+  "model:src/model"
+  
+  # テストファイル
+  "__tests__:src/__tests__"
+  
+  # アダプターファイル
+  "src/adapters:src/adapters"
+)
+
+# 同期関数
+sync_files() {
+  local source_dir=$1
+  local target_dir=$2
+  
+  # ソースディレクトリが存在しない場合はスキップ
+  if [ ! -d "$source_dir" ]; then
+    echo "警告: ソースディレクトリが存在しません: $source_dir"
+    return
   fi
-else
-  echo "警告: client/src ディレクトリが見つかりません"
-fi
+  
+  # ターゲットディレクトリを作成
+  mkdir -p "$target_dir"
+  
+  # リソースをコピー
+  echo "同期中: $source_dir → $target_dir"
+  
+  # rsyncがあれば利用、なければcpを使用
+  if command -v rsync >/dev/null 2>&1; then
+    rsync -av --exclude="node_modules" --exclude=".git" "$source_dir/" "$target_dir/"
+  else
+    # recursiveにコピー（cp -r）- 要注意：ファイルが既存の場合は上書き
+    cp -r "$source_dir"/* "$target_dir/" 2>/dev/null || true
+  fi
+}
 
-# server/ → src/server/ への同期
-echo "server/ → src/server/ の同期中..."
-if [ -d "server" ]; then
-  rsync -av --delete --exclude="node_modules" --exclude=".git" server/ src/server/
-else
-  echo "警告: server ディレクトリが見つかりません"
-fi
+# 各同期パターンを処理
+for pattern in "${sync_patterns[@]}"; do
+  # パターンを:で分割
+  IFS=':' read -r source_dir target_dir <<< "$pattern"
+  
+  # パスをルートからの絶対パスに変換
+  source_dir="$ROOT_DIR/$source_dir"
+  target_dir="$ROOT_DIR/$target_dir"
+  
+  # 同期実行
+  sync_files "$source_dir" "$target_dir"
+done
 
-# shared/ → src/shared/ への同期
-echo "shared/ → src/shared/ の同期中..."
-if [ -d "shared" ]; then
-  rsync -av --delete --exclude="node_modules" --exclude=".git" shared/ src/shared/
-else
-  echo "警告: shared ディレクトリが見つかりません"
-fi
+# 設定ファイルの移動（コピー）
+echo "設定ファイルの整理..."
 
-# model/ → src/model/ への同期
-echo "model/ → src/model/ の同期中..."
-if [ -d "model" ]; then
-  rsync -av --delete --exclude="node_modules" --exclude=".git" model/ src/model/
-else
-  echo "警告: model ディレクトリが見つかりません"
-fi
+# configディレクトリを作成
+mkdir -p config
 
-# 設定ファイルの同期
-echo "設定ファイルの同期中..."
-if [ ! -f "config/drizzle.config.ts" ] && [ -f "drizzle.config.ts" ]; then
-  cp drizzle.config.ts config/drizzle.config.ts
-fi
+# 各設定ファイルを移動（必要に応じてコピー）
+config_files=(
+  "postcss.config.js:config/postcss.config.js"
+  "tailwind.config.ts:config/tailwind.config.ts"
+  "jest.config.js:config/jest.config.js"
+  "vite.config.ts:config/vite.config.ts"
+  "drizzle.config.ts:config/drizzle.config.ts"
+)
 
-if [ ! -f "config/jest.config.js" ] && [ -f "jest.config.js" ]; then
-  cp jest.config.js config/jest.config.js
-fi
+for pattern in "${config_files[@]}"; do
+  # パターンを:で分割
+  IFS=':' read -r source_file target_file <<< "$pattern"
+  
+  # パスをルートからの絶対パスに変換
+  source_file="$ROOT_DIR/$source_file"
+  target_file="$ROOT_DIR/$target_file"
+  
+  # ファイルが存在する場合のみコピー
+  if [ -f "$source_file" ]; then
+    echo "設定ファイルコピー: $source_file → $target_file"
+    cp "$source_file" "$target_file"
+  fi
+done
 
-if [ ! -f "config/postcss.config.js" ] && [ -f "postcss.config.js" ]; then
-  cp postcss.config.js config/postcss.config.js
-fi
-
-if [ ! -f "config/tailwind.config.ts" ] && [ -f "tailwind.config.ts" ]; then
-  cp tailwind.config.ts config/tailwind.config.ts
-fi
-
-if [ ! -f "config/vite.config.ts" ] && [ -f "vite.config.ts" ]; then
-  cp vite.config.ts config/vite.config.ts
-fi
-
-echo "同期完了！"
-echo "今後は src/ ディレクトリ内での開発を推奨します"
+echo "=== 同期完了 ==="
