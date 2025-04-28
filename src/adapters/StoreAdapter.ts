@@ -5,12 +5,12 @@
  * ブリッジするためのアダプター
  */
 
-import { Block } from '../../model/Block';
-import { Connection } from '../../model/Connection';
-import { Port } from '../../model/Port';
-import { Property } from '../../model/Property';
+import { Block } from '@model/Block';
+import { Connection } from '@model/Connection';
+import { Port } from '@model/Port';
+import { Property } from '@model/Property';
 
-import { useModelStore } from '../../client/src/lib/store';
+import { useModelStore } from '@/lib/store';
 import { useSysMLModelStore, ModelElement, ModelRelationship } from '@store/sysmlStore';
 import { ModelAdapter } from './ModelAdapter';
 import { PartDefinition } from '@model/sysml2/PartDefinition';

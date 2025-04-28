@@ -5,17 +5,17 @@
  * 間を変換するためのアダプター
  */
 
-import { Block } from '../../model/Block';
-import { Port } from '../../model/Port';
-import { Property } from '../../model/Property';
-import { Connection } from '../../model/Connection';
+import { Block } from '@model/Block';
+import { Port } from '@model/Port';
+import { Property } from '@model/Property';
+import { Connection } from '@model/Connection';
 
-import { Type } from '../../model/kerml/Type';
-import { Feature } from '../../model/kerml/Feature';
-import { PartDefinition } from '../../model/sysml2/PartDefinition';
-import { PortUsage } from '../../model/sysml2/PortUsage';
-import { AttributeUsage } from '../../model/sysml2/AttributeUsage';
-import { ConnectionUsage } from '../../model/sysml2/ConnectionUsage';
+import { Type } from '@model/kerml/Type';
+import { Feature } from '@model/kerml/Feature';
+import { PartDefinition } from '@model/sysml2/PartDefinition';
+import { PortUsage } from '@model/sysml2/PortUsage';
+import { AttributeUsage } from '@model/sysml2/AttributeUsage';
+import { ConnectionUsage } from '@model/sysml2/ConnectionUsage';
 import { ModelElement, ModelRelationship } from '../store/sysmlStore';
 
 /**
