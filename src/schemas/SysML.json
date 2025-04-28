@@ -1,0 +1,350 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "id": "https://www.omg.org/spec/SysML/20250201/SysML.json",
+  "title": "SysML v2 JSON Schema",
+  "description": "JSON Schema for the Systems Modeling Language (SysML) v2",
+  "version": "2.0.0-beta3",
+  "definitions": {
+    "Element": {
+      "$ref": "KerML.json#/definitions/Element"
+    },
+    "Definition": {
+      "allOf": [
+        { "$ref": "KerML.json#/definitions/Classifier" },
+        {
+          "type": "object",
+          "properties": {
+            "__type": {
+              "enum": ["Definition", "PartDefinition", "AttributeDefinition", "PortDefinition", "InterfaceDefinition", "ConnectionDefinition", "RequirementDefinition", "ConstraintDefinition", "ActionDefinition", "StateDefinition", "ViewDefinition", "ViewpointDefinition", "RenderingDefinition"]
+            },
+            "isVariation": {
+              "type": "boolean",
+              "description": "Whether this definition represents a variation point"
+            },
+            "ownedFeatures": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Identifiers of features owned by this definition"
+            }
+          }
+        }
+      ]
+    },
+    "Usage": {
+      "allOf": [
+        { "$ref": "KerML.json#/definitions/Feature" },
+        {
+          "type": "object",
+          "properties": {
+            "__type": {
+              "enum": ["Usage", "PartUsage", "AttributeUsage", "PortUsage", "InterfaceUsage", "ConnectionUsage", "RequirementUsage", "ConstraintUsage", "ActionUsage", "StateUsage", "ViewUsage", "ViewpointUsage", "RenderingUsage"]
+            },
+            "definition": {
+              "type": "string",
+              "description": "Identifier of the definition this usage references"
+            },
+            "isVariation": {
+              "type": "boolean",
+              "description": "Whether this usage represents a variation point"
+            },
+            "nestedUsages": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Identifiers of usages nested within this usage"
+            }
+          }
+        }
+      ]
+    },
+    "PartDefinition": {
+      "allOf": [
+        { "$ref": "#/definitions/Definition" },
+        {
+          "type": "object",
+          "properties": {
+            "__type": {
+              "enum": ["PartDefinition"]
+            },
+            "isHuman": {
+              "type": "boolean",
+              "description": "Whether this part represents a human or human organization"
+            },
+            "ports": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Identifiers of ports owned by this part definition"
+            },
+            "partUsages": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Identifiers of part usages that reference this definition"
+            }
+          }
+        }
+      ]
+    },
+    "PartUsage": {
+      "allOf": [
+        { "$ref": "#/definitions/Usage" },
+        {
+          "type": "object",
+          "properties": {
+            "__type": {
+              "enum": ["PartUsage"]
+            },
+            "partDefinition": {
+              "type": "string",
+              "description": "Identifier of the part definition this usage references"
+            },
+            "isHuman": {
+              "type": "boolean",
+              "description": "Whether this part represents a human or human organization"
+            },
+            "portUsages": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Identifiers of port usages owned by this part usage"
+            }
+          }
+        }
+      ]
+    },
+    "AttributeDefinition": {
+      "allOf": [
+        { "$ref": "#/definitions/Definition" },
+        {
+          "type": "object",
+          "properties": {
+            "__type": {
+              "enum": ["AttributeDefinition"]
+            },
+            "dataType": {
+              "type": "string",
+              "description": "Identifier of the data type for this attribute"
+            },
+            "attributeUsages": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Identifiers of attribute usages that reference this definition"
+            }
+          }
+        }
+      ]
+    },
+    "AttributeUsage": {
+      "allOf": [
+        { "$ref": "#/definitions/Usage" },
+        {
+          "type": "object",
+          "properties": {
+            "__type": {
+              "enum": ["AttributeUsage"]
+            },
+            "attributeDefinition": {
+              "type": "string",
+              "description": "Identifier of the attribute definition this usage references"
+            },
+            "dataType": {
+              "type": "string",
+              "description": "Identifier of the data type for this attribute"
+            },
+            "defaultValue": {
+              "description": "Default value for this attribute"
+            }
+          }
+        }
+      ]
+    },
+    "PortDefinition": {
+      "allOf": [
+        { "$ref": "#/definitions/Definition" },
+        {
+          "type": "object",
+          "properties": {
+            "__type": {
+              "enum": ["PortDefinition"]
+            },
+            "interfaceDefinition": {
+              "type": "string",
+              "description": "Identifier of the interface definition for this port"
+            },
+            "direction": {
+              "type": "string",
+              "enum": ["in", "out", "inout"],
+              "description": "Direction of the port"
+            },
+            "portUsages": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Identifiers of port usages that reference this definition"
+            }
+          }
+        }
+      ]
+    },
+    "PortUsage": {
+      "allOf": [
+        { "$ref": "#/definitions/Usage" },
+        {
+          "type": "object",
+          "properties": {
+            "__type": {
+              "enum": ["PortUsage"]
+            },
+            "portDefinition": {
+              "type": "string",
+              "description": "Identifier of the port definition this usage references"
+            },
+            "interfaceUsage": {
+              "type": "string",
+              "description": "Identifier of the interface usage for this port"
+            },
+            "direction": {
+              "type": "string",
+              "enum": ["in", "out", "inout"],
+              "description": "Direction of the port"
+            },
+            "position": {
+              "type": "object",
+              "properties": {
+                "x": { "type": "number" },
+                "y": { "type": "number" }
+              },
+              "description": "Position of the port on its owning part (UI information)"
+            }
+          }
+        }
+      ]
+    },
+    "InterfaceDefinition": {
+      "allOf": [
+        { "$ref": "#/definitions/Definition" },
+        {
+          "type": "object",
+          "properties": {
+            "__type": {
+              "enum": ["InterfaceDefinition"]
+            },
+            "interfaceUsages": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Identifiers of interface usages that reference this definition"
+            }
+          }
+        }
+      ]
+    },
+    "InterfaceUsage": {
+      "allOf": [
+        { "$ref": "#/definitions/Usage" },
+        {
+          "type": "object",
+          "properties": {
+            "__type": {
+              "enum": ["InterfaceUsage"]
+            },
+            "interfaceDefinition": {
+              "type": "string",
+              "description": "Identifier of the interface definition this usage references"
+            }
+          }
+        }
+      ]
+    },
+    "ConnectionDefinition": {
+      "allOf": [
+        { "$ref": "#/definitions/Definition" },
+        {
+          "type": "object",
+          "properties": {
+            "__type": {
+              "enum": ["ConnectionDefinition"]
+            },
+            "flowType": {
+              "type": "string",
+              "description": "Identifier of the type that flows through this connection"
+            },
+            "connectionUsages": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Identifiers of connection usages that reference this definition"
+            }
+          }
+        }
+      ]
+    },
+    "ConnectionUsage": {
+      "allOf": [
+        { "$ref": "#/definitions/Usage" },
+        {
+          "type": "object",
+          "properties": {
+            "__type": {
+              "enum": ["ConnectionUsage"]
+            },
+            "connectionDefinition": {
+              "type": "string",
+              "description": "Identifier of the connection definition this usage references"
+            },
+            "sourcePortId": {
+              "type": "string",
+              "description": "Identifier of the source port for this connection"
+            },
+            "targetPortId": {
+              "type": "string",
+              "description": "Identifier of the target port for this connection"
+            },
+            "flowType": {
+              "type": "string",
+              "description": "Identifier of the type that flows through this connection"
+            },
+            "vertices": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "x": { "type": "number" },
+                  "y": { "type": "number" }
+                }
+              },
+              "description": "Vertices for routing the connection (UI information)"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "anyOf": [
+    { "$ref": "#/definitions/Element" },
+    { "$ref": "#/definitions/Definition" },
+    { "$ref": "#/definitions/Usage" },
+    { "$ref": "#/definitions/PartDefinition" },
+    { "$ref": "#/definitions/PartUsage" },
+    { "$ref": "#/definitions/AttributeDefinition" },
+    { "$ref": "#/definitions/AttributeUsage" },
+    { "$ref": "#/definitions/PortDefinition" },
+    { "$ref": "#/definitions/PortUsage" },
+    { "$ref": "#/definitions/InterfaceDefinition" },
+    { "$ref": "#/definitions/InterfaceUsage" },
+    { "$ref": "#/definitions/ConnectionDefinition" },
+    { "$ref": "#/definitions/ConnectionUsage" }
+  ]
+}

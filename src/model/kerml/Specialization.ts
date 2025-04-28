@@ -1,35 +1,54 @@
-import { v4 as uuidv4 } from 'uuid';
-import { KerML_Specialization } from './interfaces';
-
 /**
  * KerML Specialization クラス
- * KerML メタモデルの特殊化関係概念を表現する
- * OMG仕様：ptc/2025-02-02, KerML v1.0 Beta3
+ * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.8に準拠
+ * 
+ * KerMLのSpecializationは、型の特化関係を表現する基本クラスです。
+ * 特化とは、ある型が別の型の特殊化であることを示す関係です。
  */
-export class Specialization {
-  /** 一意識別子 */
+
+import { v4 as uuid } from 'uuid';
+import { KerML_Element } from './interfaces';
+
+/**
+ * Specialization クラス
+ * 型の特化関係を表現するクラス
+ */
+export class Specialization implements KerML_Element {
+  /** 要素の一意識別子 */
   readonly id: string;
   
-  /** 所有者要素ID */
-  ownerId?: string;
-  
-  /** 要素名 */
+  /** 要素の名前 */
   name?: string;
   
-  /** 短い名前（エイリアス） */
-  shortName?: string;
-  
-  /** 修飾名（完全修飾名） */
-  qualifiedName?: string;
-  
-  /** 説明 */
+  /** 要素の説明 */
   description?: string;
   
-  /** 一般型要素のID */
-  general: string;
+  /** 短縮名 */
+  shortName?: string;
   
-  /** 特殊型要素のID */
-  specific: string;
+  /** 限定名 */
+  qualifiedName?: string;
+  
+  /** 所有者のID */
+  ownerId?: string;
+  
+  /** 要素の型 - 常に 'Specialization' */
+  readonly __type: string = 'Specialization';
+  
+  /** 特殊型（サブタイプ）のID */
+  specificId: string;
+  
+  /** 一般型（スーパータイプ）のID */
+  generalId: string;
+  
+  /** 再定義（Redefinition）かどうか */
+  isRedefinition: boolean = false;
+  
+  /** サブセット（Subset）かどうか */
+  isSubset: boolean = false;
+  
+  /** 共変（Covariant）かどうか */
+  isCovariant: boolean = false;
   
   /**
    * Specialization コンストラクタ
@@ -37,59 +56,96 @@ export class Specialization {
    */
   constructor(options: {
     id?: string;
-    ownerId?: string;
     name?: string;
+    description?: string;
     shortName?: string;
     qualifiedName?: string;
-    description?: string;
-    general: string;
-    specific: string;
+    ownerId?: string;
+    specificId: string;
+    generalId: string;
+    isRedefinition?: boolean;
+    isSubset?: boolean;
+    isCovariant?: boolean;
   }) {
-    this.id = options.id || uuidv4();
-    this.ownerId = options.ownerId;
-    this.name = options.name;
+    this.id = options.id || uuid();
+    this.name = options.name || `${options.specificId}_extends_${options.generalId}`;
+    this.description = options.description;
     this.shortName = options.shortName;
     this.qualifiedName = options.qualifiedName;
-    this.description = options.description;
+    this.ownerId = options.ownerId;
     
-    // 必須プロパティ
-    this.general = options.general;
-    this.specific = options.specific;
+    this.specificId = options.specificId;
+    this.generalId = options.generalId;
+    this.isRedefinition = options.isRedefinition || false;
+    this.isSubset = options.isSubset || false;
+    this.isCovariant = options.isCovariant || false;
   }
   
   /**
-   * JSON形式に変換
-   * @returns JSON表現
+   * 検証を行う
+   * @throws Error 検証エラーがある場合
    */
-  toJSON(): KerML_Specialization {
+  validate(): void {
+    if (!this.specificId) {
+      throw new Error('特殊型（specificId）は必須です');
+    }
+    
+    if (!this.generalId) {
+      throw new Error('一般型（generalId）は必須です');
+    }
+    
+    if (this.specificId === this.generalId) {
+      throw new Error('特殊型と一般型は異なる必要があります');
+    }
+  }
+  
+  /**
+   * JSONオブジェクトに変換する
+   * @returns JSONオブジェクト
+   */
+  toJSON(): any {
     return {
-      __type: 'Specialization',
       id: this.id,
-      ownerId: this.ownerId,
       name: this.name,
+      description: this.description,
       shortName: this.shortName,
       qualifiedName: this.qualifiedName,
-      description: this.description,
-      general: this.general,
-      specific: this.specific
+      ownerId: this.ownerId,
+      __type: this.__type,
+      specificId: this.specificId,
+      generalId: this.generalId,
+      isRedefinition: this.isRedefinition,
+      isSubset: this.isSubset,
+      isCovariant: this.isCovariant
     };
   }
   
   /**
-   * JSON形式から特殊化関係を作成
-   * @param json JSON表現
-   * @returns 特殊化関係インスタンス
+   * JSONデータからインスタンスを作成する
+   * @param json JSONデータ
+   * @returns Specializationインスタンス
    */
-  static fromJSON(json: KerML_Specialization): Specialization {
+  static fromJSON(json: any): Specialization {
+    if (!json || typeof json !== 'object') {
+      throw new Error('有効なJSONオブジェクトではありません');
+    }
+    
+    if (!json.specificId || !json.generalId) {
+      throw new Error('特殊型IDと一般型IDは必須です');
+    }
+    
     return new Specialization({
       id: json.id,
-      ownerId: json.ownerId,
       name: json.name,
+      description: json.description,
       shortName: json.shortName,
       qualifiedName: json.qualifiedName,
-      description: json.description,
-      general: json.general,
-      specific: json.specific
+      ownerId: json.ownerId,
+      specificId: json.specificId,
+      generalId: json.generalId,
+      isRedefinition: json.isRedefinition,
+      isSubset: json.isSubset,
+      isCovariant: json.isCovariant
     });
   }
 }

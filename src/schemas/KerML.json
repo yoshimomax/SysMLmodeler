@@ -1,0 +1,264 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "id": "https://www.omg.org/spec/KerML/20250201/KerML.json",
+  "title": "KerML JSON Schema",
+  "description": "JSON Schema for the Kernel Modeling Language (KerML)",
+  "version": "1.0.0-beta3",
+  "definitions": {
+    "Element": {
+      "type": "object",
+      "required": ["id", "__type"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the element"
+        },
+        "__type": {
+          "type": "string",
+          "description": "Type identifier for the element"
+        },
+        "name": {
+          "type": "string",
+          "description": "Optional name for the element"
+        },
+        "shortName": {
+          "type": "string",
+          "description": "Optional short name for the element"
+        },
+        "qualifiedName": {
+          "type": "string",
+          "description": "Optional qualified name for the element"
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional description for the element"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Identifier of the owning element, if any"
+        }
+      }
+    },
+    "Type": {
+      "allOf": [
+        { "$ref": "#/definitions/Element" },
+        {
+          "type": "object",
+          "properties": {
+            "__type": {
+              "enum": ["Type"]
+            },
+            "isAbstract": {
+              "type": "boolean",
+              "description": "Whether the type is abstract (cannot be directly instantiated)"
+            },
+            "isConjugated": {
+              "type": "boolean",
+              "description": "Whether the type is a conjugate of another type"
+            },
+            "multiplicity": {
+              "type": "string",
+              "description": "Multiplicity of the type, if any (e.g., '1', '0..1', '*')"
+            },
+            "specializations": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Identifiers of types this type specializes"
+            },
+            "features": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Identifiers of features owned by this type"
+            }
+          }
+        }
+      ]
+    },
+    "Feature": {
+      "allOf": [
+        { "$ref": "#/definitions/Type" },
+        {
+          "type": "object",
+          "properties": {
+            "__type": {
+              "enum": ["Feature"]
+            },
+            "isUnique": {
+              "type": "boolean",
+              "description": "Whether values of this feature must be unique"
+            },
+            "isOrdered": {
+              "type": "boolean",
+              "description": "Whether values of this feature are ordered"
+            },
+            "isComposite": {
+              "type": "boolean",
+              "description": "Whether this feature represents a composite relationship"
+            },
+            "isPortion": {
+              "type": "boolean",
+              "description": "Whether this feature represents a portion relationship"
+            },
+            "isReadOnly": {
+              "type": "boolean",
+              "description": "Whether this feature is read-only"
+            },
+            "isDerived": {
+              "type": "boolean",
+              "description": "Whether this feature is derived from other features"
+            },
+            "isEnd": {
+              "type": "boolean",
+              "description": "Whether this feature is an association end"
+            },
+            "direction": {
+              "type": "string",
+              "enum": ["in", "out", "inout"],
+              "description": "Direction of the feature, if applicable"
+            },
+            "type": {
+              "type": "string",
+              "description": "Identifier of the type of this feature"
+            },
+            "redefinitions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Identifiers of features this feature redefines"
+            }
+          }
+        }
+      ]
+    },
+    "Classifier": {
+      "allOf": [
+        { "$ref": "#/definitions/Type" },
+        {
+          "type": "object",
+          "properties": {
+            "__type": {
+              "enum": ["Classifier"]
+            },
+            "isFinal": {
+              "type": "boolean",
+              "description": "Whether this classifier cannot be specialized further"
+            },
+            "isIndividual": {
+              "type": "boolean",
+              "description": "Whether this classifier represents a singleton instance"
+            }
+          }
+        }
+      ]
+    },
+    "MultiplicityRange": {
+      "allOf": [
+        { "$ref": "#/definitions/Element" },
+        {
+          "type": "object",
+          "required": ["lowerBound", "upperBound"],
+          "properties": {
+            "__type": {
+              "enum": ["MultiplicityRange"]
+            },
+            "lowerBound": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Lower bound of the multiplicity range"
+            },
+            "upperBound": {
+              "type": "integer",
+              "description": "Upper bound of the multiplicity range, or -1 for unlimited"
+            },
+            "boundingType": {
+              "type": "string",
+              "description": "Identifier of the type that bounds this range, if any"
+            }
+          }
+        }
+      ]
+    },
+    "Specialization": {
+      "allOf": [
+        { "$ref": "#/definitions/Element" },
+        {
+          "type": "object",
+          "required": ["specificId", "generalId"],
+          "properties": {
+            "__type": {
+              "enum": ["Specialization"]
+            },
+            "specificId": {
+              "type": "string",
+              "description": "Identifier of the specific (subtype) in the specialization relationship"
+            },
+            "generalId": {
+              "type": "string",
+              "description": "Identifier of the general (supertype) in the specialization relationship"
+            },
+            "isRedefinition": {
+              "type": "boolean",
+              "description": "Whether this specialization is a redefinition"
+            },
+            "isSubset": {
+              "type": "boolean",
+              "description": "Whether this specialization is a subsetting"
+            },
+            "isCovariant": {
+              "type": "boolean",
+              "description": "Whether this specialization is covariant"
+            }
+          }
+        }
+      ]
+    },
+    "FeatureMembership": {
+      "allOf": [
+        { "$ref": "#/definitions/Element" },
+        {
+          "type": "object",
+          "required": ["ownedTypeId", "ownedFeatureId"],
+          "properties": {
+            "__type": {
+              "enum": ["FeatureMembership"]
+            },
+            "ownedTypeId": {
+              "type": "string",
+              "description": "Identifier of the type that owns the feature"
+            },
+            "ownedFeatureId": {
+              "type": "string",
+              "description": "Identifier of the feature that is owned"
+            },
+            "isDerived": {
+              "type": "boolean",
+              "description": "Whether this membership is derived"
+            },
+            "isPublic": {
+              "type": "boolean",
+              "description": "Whether this membership is public"
+            },
+            "isOwned": {
+              "type": "boolean",
+              "description": "Whether the feature is exclusively owned"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "anyOf": [
+    { "$ref": "#/definitions/Element" },
+    { "$ref": "#/definitions/Type" },
+    { "$ref": "#/definitions/Feature" },
+    { "$ref": "#/definitions/Classifier" },
+    { "$ref": "#/definitions/MultiplicityRange" },
+    { "$ref": "#/definitions/Specialization" },
+    { "$ref": "#/definitions/FeatureMembership" }
+  ]
+}
