@@ -23,6 +23,9 @@ export interface SysML2_Definition extends SysML2_Element, KerML_Classifier {
   isAbstract?: boolean;
   isVariation?: boolean;
   ownedFeatures?: string[];
+  description?: string;  // 説明（任意）
+  stereotype?: string;   // 後方互換性のためのステレオタイプ（任意）
+  usageReferences?: string[]; // 参照しているUsage（任意）
 }
 
 /**
@@ -34,61 +37,74 @@ export interface SysML2_Usage extends SysML2_Element, KerML_Feature {
   definition?: string;  // 参照する Definition の ID
   isVariation?: boolean;
   nestedUsages?: string[];
+  description?: string;  // 説明（任意）
 }
 
 /**
  * SysML2 PartDefinition インターフェース
+ * 部品定義を表現する
  */
 export interface SysML2_PartDefinition extends SysML2_Definition {
-  __type: 'PartDefinition' | string;
-  isHuman?: boolean;
-  partUsages?: string[];
-  interfaceDefinitions?: string[];
-  connectionDefinitions?: string[];
-  flowDefinitions?: string[];
-  stateDefinitions?: string[];
-  constraintDefinitions?: string[];
-  requirementDefinitions?: string[];
-  calculationDefinitions?: string[];
-  metadataDefinitions?: string[];
-  ports?: string[];
+  __type: 'PartDefinition';
+  isHuman?: boolean;       // 人間かどうか
+  isSingleton?: boolean;   // シングルトンかどうか
+  ports?: string[];        // ポート定義ID配列
+  partUsages?: string[];   // パート使用ID配列
+  interfaceDefinitions?: string[];  // インターフェース定義ID配列
+  connectionDefinitions?: string[]; // 接続定義ID配列
+  flowDefinitions?: string[];       // フロー定義ID配列
+  stateDefinitions?: string[];      // 状態定義ID配列
+  constraintDefinitions?: string[]; // 制約定義ID配列
+  requirementDefinitions?: string[]; // 要求定義ID配列
+  calculationDefinitions?: string[]; // 計算定義ID配列
+  metadataDefinitions?: string[];    // メタデータ定義ID配列
 }
 
 /**
  * SysML2 PartUsage インターフェース
+ * 部品使用を表現する
  */
 export interface SysML2_PartUsage extends SysML2_Usage {
-  __type: 'PartUsage' | string;
-  isHuman?: boolean;
-  partDefinition?: string;
-  nestedParts?: string[];
-  nestedInterfaces?: string[];
-  nestedConnections?: string[];
-  nestedFlows?: string[];
-  nestedStates?: string[];
-  nestedConstraints?: string[];
-  nestedRequirements?: string[];
-  nestedCalculations?: string[];
-  nestedMetadata?: string[];
-  ports?: string[];
+  __type: 'PartUsage';
+  partDefinition?: string; // 参照するパート定義ID
+  isHuman?: boolean;       // 人間かどうか
+  portUsages?: string[];   // ポート使用ID配列
+  nestedParts?: string[];  // ネストされたパート使用ID配列
+  nestedInterfaces?: string[]; // ネストされたインターフェース使用ID配列
+  nestedConnections?: string[]; // ネストされた接続使用ID配列
+  nestedFlows?: string[];  // ネストされたフロー使用ID配列
+  nestedStates?: string[]; // ネストされた状態使用ID配列
+  nestedConstraints?: string[]; // ネストされた制約使用ID配列
+  nestedRequirements?: string[]; // ネストされた要求使用ID配列
+  nestedCalculations?: string[]; // ネストされた計算使用ID配列
+  nestedMetadata?: string[]; // ネストされたメタデータ使用ID配列
 }
 
 /**
  * SysML2 InterfaceDefinition インターフェース
+ * インターフェース定義を表現する
  */
 export interface SysML2_InterfaceDefinition extends SysML2_Definition {
   __type: 'InterfaceDefinition';
-  endFeatures?: string[];
-  interfaceUsages?: string[];
+  direction?: 'in' | 'out' | 'inout';  // 方向性
+  isConjugated?: boolean;              // 共役かどうか
+  interfaceFeatures?: string[];        // インターフェース特性ID配列
+  interfaceUsages?: string[];          // インターフェース使用ID配列
+  endFeatures?: string[];              // エンドポイント特性ID配列
 }
 
 /**
  * SysML2 InterfaceUsage インターフェース
+ * インターフェース使用を表現する
  */
 export interface SysML2_InterfaceUsage extends SysML2_Usage {
   __type: 'InterfaceUsage';
-  interfaceDefinition?: string;
-  endFeatures?: string[];
+  interfaceDefinition?: string;         // 参照するインターフェース定義ID
+  direction?: 'in' | 'out' | 'inout';   // 方向性
+  isConjugated?: boolean;               // 共役かどうか
+  ownerPortId?: string;                 // 所有ポートID
+  interfaceFeatureUsages?: string[];    // インターフェース特性使用ID配列
+  endFeatures?: string[];               // エンドポイント特性ID配列
 }
 
 /**

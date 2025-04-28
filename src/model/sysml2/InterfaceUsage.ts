@@ -1,82 +1,139 @@
-import { v4 as uuidv4 } from 'uuid';
+/**
+ * SysML v2 InterfaceUsage クラス
+ * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §8.4.2に準拠
+ * 
+ * InterfaceUsageは、InterfaceDefinitionのインスタンスを表し、
+ * 具体的なシステム要素間の相互作用を実現します。
+ */
+
+import { v4 as uuid } from 'uuid';
 import { Usage } from './Usage';
+import { Feature } from '../kerml/Feature';
 import { SysML2_InterfaceUsage } from './interfaces';
 
 /**
- * SysML v2のInterfaceUsageクラス
- * システム間のインターフェースの使用を表す
- * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.8に準拠
+ * InterfaceUsage クラス
+ * SysML v2のインターフェース使用を表現するクラス
  */
 export class InterfaceUsage extends Usage {
-  /** 参照するInterfaceDefinitionのID */
+  /** 参照するインターフェース定義のID */
   interfaceDefinitionId?: string;
   
-  /** 終端特性のIDリスト */
-  endFeatures: string[];
+  /** インターフェース特性のID配列 */
+  interfaceFeatureUsages: string[] = [];
+  
+  /** エンドポイント方向（定義から継承するか上書き） */
+  direction?: 'in' | 'out' | 'inout';
+  
+  /** コンジュゲート（共役）インターフェースかどうか */
+  isConjugated: boolean = false;
+  
+  /** 所有するポートのID（このインターフェースを提供するポート） */
+  ownerPortId?: string;
   
   /**
    * InterfaceUsage コンストラクタ
-   * @param params 初期化パラメータ
+   * @param options 初期化オプション
    */
-  constructor(params: {
+  constructor(options: {
     id?: string;
-    ownerId?: string;
     name?: string;
-    definitionId?: string;
-    interfaceDefinitionId?: string;
+    description?: string;
     isVariation?: boolean;
-    stereotype?: string;
-    nestedUsages?: string[] | Usage[];
-    endFeatures?: string[];
-  }) {
+    ownerId?: string;
+    interfaceDefinitionId?: string;
+    direction?: 'in' | 'out' | 'inout';
+    isConjugated?: boolean;
+    ownerPortId?: string;
+    interfaceFeatureUsages?: string[];
+    nestedUsages?: Feature[];
+  } = {}) {
     super({
-      id: params.id || uuidv4(),
-      ownerId: params.ownerId,
-      name: params.name,
-      definitionId: params.definitionId || params.interfaceDefinitionId,
-      isVariation: params.isVariation,
-      stereotype: params.stereotype,
-      nestedUsages: params.nestedUsages
+      id: options.id || uuid(),
+      name: options.name || 'unnamed_interface_usage',
+      description: options.description,
+      isVariation: options.isVariation,
+      ownerId: options.ownerId,
+      definitionId: options.interfaceDefinitionId,
+      nestedUsages: options.nestedUsages
     });
     
-    this.interfaceDefinitionId = params.interfaceDefinitionId || params.definitionId;
-    this.endFeatures = params.endFeatures || [];
+    this.interfaceDefinitionId = options.interfaceDefinitionId;
+    this.direction = options.direction;
+    this.isConjugated = options.isConjugated || false;
+    this.ownerPortId = options.ownerPortId;
+    this.interfaceFeatureUsages = options.interfaceFeatureUsages || [];
   }
   
   /**
-   * 終端特性を追加する
-   * @param featureId 追加する特性のID
+   * インターフェース特性使用を追加する
+   * @param featureUsageId 追加する特性使用のID
    */
-  addEndFeature(featureId: string): void {
-    if (!this.endFeatures.includes(featureId)) {
-      this.endFeatures.push(featureId);
+  addInterfaceFeatureUsage(featureUsageId: string): void {
+    if (!this.interfaceFeatureUsages.includes(featureUsageId)) {
+      this.interfaceFeatureUsages.push(featureUsageId);
     }
   }
   
   /**
-   * 終端特性を削除する
-   * @param featureId 削除する特性のID
-   * @returns 削除に成功した場合はtrue、見つからない場合はfalse
+   * インターフェース特性使用を削除する
+   * @param featureUsageId 削除する特性使用のID
+   * @returns 削除に成功した場合はtrue、そうでなければfalse
    */
-  removeEndFeature(featureId: string): boolean {
-    const index = this.endFeatures.indexOf(featureId);
-    if (index !== -1) {
-      this.endFeatures.splice(index, 1);
-      return true;
+  removeInterfaceFeatureUsage(featureUsageId: string): boolean {
+    const initialLength = this.interfaceFeatureUsages.length;
+    this.interfaceFeatureUsages = this.interfaceFeatureUsages.filter(id => id !== featureUsageId);
+    return this.interfaceFeatureUsages.length !== initialLength;
+  }
+  
+  /**
+   * インターフェース定義を参照付けする
+   * @param interfaceDefinitionId 参照するインターフェース定義のID
+   */
+  setInterfaceDefinition(interfaceDefinitionId: string): void {
+    this.interfaceDefinitionId = interfaceDefinitionId;
+    this.definitionId = interfaceDefinitionId; // Usage基底クラスのdefinitionIdも更新
+  }
+  
+  /**
+   * 共役インターフェース使用を生成する
+   * インとアウトが逆になり、他の特性は同じ
+   * @returns 共役インターフェース使用のインスタンス
+   */
+  createConjugate(): InterfaceUsage {
+    // 方向を反転
+    let conjugateDirection: 'in' | 'out' | 'inout' | undefined = this.direction;
+    if (this.direction === 'in') {
+      conjugateDirection = 'out';
+    } else if (this.direction === 'out') {
+      conjugateDirection = 'in';
     }
-    return false;
+    
+    return new InterfaceUsage({
+      name: `${this.name}_conjugate`,
+      description: `${this.name}の共役インターフェース使用`,
+      isVariation: this.isVariation,
+      interfaceDefinitionId: this.interfaceDefinitionId,
+      direction: conjugateDirection,
+      isConjugated: true,
+      interfaceFeatureUsages: [...this.interfaceFeatureUsages]
+    });
   }
   
   /**
    * JSONオブジェクトに変換する
    * @returns SysML2_InterfaceUsage形式のJSONオブジェクト
    */
-  toJSON(): SysML2_InterfaceUsage {
+  override toJSON(): SysML2_InterfaceUsage {
+    const baseJson = super.toJSON();
     return {
-      ...super.toJSON(),
+      ...baseJson,
       __type: 'InterfaceUsage',
-      interfaceDefinition: this.interfaceDefinitionId,
-      endFeatures: this.endFeatures
+      interfaceDefinitionId: this.interfaceDefinitionId,
+      direction: this.direction,
+      isConjugated: this.isConjugated,
+      ownerPortId: this.ownerPortId,
+      interfaceFeatureUsages: this.interfaceFeatureUsages
     };
   }
   
@@ -88,28 +145,16 @@ export class InterfaceUsage extends Usage {
   static fromJSON(json: SysML2_InterfaceUsage): InterfaceUsage {
     return new InterfaceUsage({
       id: json.id,
-      ownerId: json.ownerId,
       name: json.name,
-      definitionId: json.definition,
-      interfaceDefinitionId: json.interfaceDefinition,
+      description: json.description,
       isVariation: json.isVariation,
-      stereotype: json.stereotype,
-      nestedUsages: json.nestedUsages,
-      endFeatures: json.endFeatures
+      ownerId: json.ownerId,
+      interfaceDefinitionId: json.interfaceDefinitionId,
+      direction: json.direction,
+      isConjugated: json.isConjugated,
+      ownerPortId: json.ownerPortId,
+      interfaceFeatureUsages: json.interfaceFeatureUsages,
+      nestedUsages: [] // JSONから読み込む際は実際のFeatureインスタンスへの変換が必要
     });
-  }
-  
-  /**
-   * オブジェクトをプレーンなJavaScriptオブジェクトに変換する（UI表示用）
-   * @returns プレーンなJavaScriptオブジェクト
-   */
-  toObject() {
-    return {
-      id: this.id,
-      name: this.name,
-      stereotype: this.stereotype || 'interface',
-      definitionId: this.interfaceDefinitionId,
-      endFeatures: this.endFeatures
-    };
   }
 }

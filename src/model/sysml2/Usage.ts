@@ -1,30 +1,29 @@
-import { v4 as uuidv4 } from 'uuid';
+/**
+ * SysML v2 Usage クラス
+ * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.7に準拠
+ * 
+ * Usageは、Definitionのインスタンスを表現する基底クラスです。
+ * SysML v2のUsageは、KerMLのFeatureを基底とし、対応するDefinitionと関連付けられます。
+ */
+
+import { v4 as uuid } from 'uuid';
 import { Feature } from '../kerml/Feature';
 import { SysML2_Usage } from './interfaces';
 import { validateKerMLFeature } from '../kerml/validators';
 import { validateSysMLUsage, ValidationError } from './validator';
 
 /**
- * SysML v2のUsage基底クラス
- * OMG SysML v2 Beta3 Part1 (ptc/2025-02-11) §7.6に準拠
- * 
- * Usageは、システム要素のインスタンス使用を表すクラスです。
- * SysML v2のUsageは、KerMLのFeatureを基底とし、対応するDefinitionと関連付けられます。
+ * Usage クラス
+ * SysML v2の使用を表現する基底クラス
  */
 export class Usage extends Feature {
-  /** 参照するDefinitionのID */
+  /** 変化点・選択肢を表現 */
+  isVariation: boolean;
+  
+  /** 参照する定義のID */
   definitionId?: string;
   
-  /** バリエーション要素かどうか */
-  isVariation: boolean;
-
-  /** 抽象要素かどうか */
-  isAbstract: boolean;
-  
-  /** ステレオタイプ (SysML v2 Profile適用情報) */
-  stereotype?: string;
-  
-  /** ネストされたUsageのIDリスト */
+  /** ネストされた使用（Usage）のID配列 */
   nestedUsages: string[];
   
   /**
@@ -35,26 +34,23 @@ export class Usage extends Feature {
     id?: string;
     ownerId?: string;
     name?: string;
-    definitionId?: string;
+    description?: string;
     isVariation?: boolean;
-    isAbstract?: boolean;
-    stereotype?: string;
-    nestedUsages?: string[] | Usage[];
+    definitionId?: string;
+    nestedUsages?: string[] | Feature[];
   }) {
     super({
-      id: params.id || uuidv4(),
+      id: params.id || uuid(),
       ownerId: params.ownerId,
       name: params.name,
-      isAbstract: params.isAbstract
+      description: params.description
     });
     
-    this.definitionId = params.definitionId;
     this.isVariation = params.isVariation ?? false;
-    this.isAbstract = params.isAbstract ?? false;
-    this.stereotype = params.stereotype;
+    this.definitionId = params.definitionId;
     this.nestedUsages = [];
     
-    // ネストされたUsageの設定
+    // ネストされた使用の設定
     if (params.nestedUsages) {
       params.nestedUsages.forEach(usage => {
         if (typeof usage === 'string') {
@@ -75,17 +71,17 @@ export class Usage extends Feature {
   }
   
   /**
-   * ネストされたUsageを追加する
-   * @param usage 追加するUsage
+   * ネストされた使用を追加する
+   * @param usage 追加する使用
    */
-  addNestedUsage(usage: Usage): void {
+  addNestedUsage(usage: Feature): void {
     usage.ownerId = this.id;
     this.nestedUsages.push(usage.id);
   }
   
   /**
-   * ネストされたUsageを削除する
-   * @param usageId 削除するUsageのID
+   * ネストされた使用を削除する
+   * @param usageId 削除する使用のID
    * @returns 削除に成功した場合はtrue、見つからない場合はfalse
    */
   removeNestedUsage(usageId: string): boolean {
@@ -98,8 +94,8 @@ export class Usage extends Feature {
   }
   
   /**
-   * 関連付けられたDefinitionを変更する
-   * @param definitionId 新しいDefinitionのID
+   * 定義の参照を設定する
+   * @param definitionId 参照する定義のID
    */
   setDefinition(definitionId: string): void {
     this.definitionId = definitionId;
@@ -123,14 +119,12 @@ export class Usage extends Feature {
    * JSONオブジェクトに変換する
    * @returns SysML2_Usage形式のJSONオブジェクト
    */
-  toJSON(): SysML2_Usage {
+  override toJSON(): SysML2_Usage {
     return {
       ...super.toJSON(),
       __type: 'Usage',
-      definition: this.definitionId,
       isVariation: this.isVariation,
-      isAbstract: this.isAbstract,
-      stereotype: this.stereotype,
+      definition: this.definitionId,
       nestedUsages: this.nestedUsages
     };
   }
@@ -145,10 +139,9 @@ export class Usage extends Feature {
       id: json.id,
       ownerId: json.ownerId,
       name: json.name,
-      definitionId: json.definition,
+      description: json.description,
       isVariation: json.isVariation,
-      isAbstract: json.isAbstract,
-      stereotype: json.stereotype,
+      definitionId: json.definition,
       nestedUsages: json.nestedUsages || []
     });
   }
@@ -161,8 +154,7 @@ export class Usage extends Feature {
     return {
       id: this.id,
       name: this.name,
-      stereotype: this.stereotype || 'usage',
-      isAbstract: this.isAbstract,
+      type: 'usage',
       isVariation: this.isVariation,
       definitionId: this.definitionId,
       nestedUsages: this.nestedUsages
